@@ -444,7 +444,8 @@ class FormatOps(
       style: ScalafmtConfig,
       clauseSiteFlags: ClauseSiteFlags,
   ): Boolean = !style.newlines.sourceIgnored && {
-    !dangleCloseDelim && !alignOpenDelim || ft.hasBreak ||
+    !dangleCloseDelim && !alignOpenDelim ||
+    clauseSiteFlags.configStyle.preferBreakBeforeClose || ft.hasBreak ||
     (next(ft).hasBreak || style.newlines.forceAfterImplicitParamListModifier) &&
     opensConfigStyleImplicitParamList(ft)
   } && breakBeforeClose
@@ -1079,7 +1080,11 @@ class FormatOps(
             }
             val end = getSlbEndOnLeft(afterYield ?? getLast(t))
             getSlbSplits(end, exclude, penalize(1))
-          } else getSlbSplits()
+          }
+          // CARROT fork: under source=keep, allow a braceless for/for-yield to
+          // stay after `=` (like Term.If above), instead of SLB-only splits.
+          else if (isKeep) getSplits(getSlbSplit(getExprBeg(t.enumsBlock)))
+          else getSlbSplits()
         case ia: Member.Infix =>
           val lia = InfixSplits.findLeftInfix(ia)
           val callPolicy = CallSite.getFoldedPolicy(lia.lhs)

@@ -1820,7 +1820,11 @@ object SplitsAfterLeftParenOrBracket {
 
     val wouldDangle = onlyConfigStyle || mustDangleForTrailingCommas ||
       dangleCloseDelim || closeBreak && beforeClose.left.is[T.Comment]
-    val optimalIsComment = optimal.left.is[T.Comment]
+    // CARROT fork: with preferBreakBeforeClose, a heuristically dangled close
+    // would be re-read as config style on the next pass, breaking idempotency;
+    // dangle only when the site is config style (i.e. the source dangled it).
+    val optimalIsComment = optimal.left.is[T.Comment] &&
+      !(configStyleFlags.preferBreakBeforeClose && !onlyConfigStyle)
 
     val newlinePolicy: Policy = Policy ? (wouldDangle || optimalIsComment) &&
       decideNewlinesOnlyBeforeClose(Split(Newline, 0, rank = -1))(close)

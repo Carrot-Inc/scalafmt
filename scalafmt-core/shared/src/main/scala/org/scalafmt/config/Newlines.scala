@@ -705,6 +705,10 @@ object Newlines {
   case class ConfigStyleElement(
       prefer: Boolean = true,
       private val forceIfOptimized: Option[Boolean] = None,
+      /* CARROT fork: with `prefer`, a source break before the closing delimiter
+       * alone marks the clause as config-style, even when danglingParentheses
+       * or align.open*Site would otherwise disable that detection. */
+      preferBreakBeforeClose: Boolean = false,
   ) {
     @inline
     def getForceIfOptimized: Boolean = forceIfOptimized.getOrElse(prefer)

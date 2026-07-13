@@ -21,14 +21,9 @@ def isScala3 = isScalaVer("3")
 
 inThisBuild {
   List(
-    // version is set dynamically by sbt-dynver, but let's adjust it
-    version := {
-      val curVersion = version.value
-      def dynVer(out: sbtdynver.GitDescribeOutput): String =
-        if (out.isCleanAfterTag || isCI) curVersion
-        else s"${out.ref.dropPrefix}-next-SNAPSHOT" // modified for local builds
-      dynverGitDescribeOutput.value.mkVersion(dynVer, curVersion)
-    },
+    // CARROT fork: pin the version explicitly (upstream uses sbt-dynver);
+    // bump the suffix on each fork revision.
+    version := "3.11.3-CARROT.1",
     organization := smorgN,
     homepage := Some(url("https://github.com/scalameta/scalafmt")),
     licenses :=

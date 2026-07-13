@@ -1,0 +1,98 @@
+runner.dialect = scala3
+maxColumn = 120
+newlines.source = keep
+newlines.configStyle.defnSite {
+  prefer = true
+  forceIfOptimized = false
+  preferBreakBeforeClose = true
+}
+danglingParentheses.defnSite = false
+align.openParenDefnSite = true
+continuationIndent.defnSite = 2
+<<< carrot 1.1: braceless for-yield after = stays inline under keep
+object a:
+  def forOnTheSameLine(param: String): Task[Int] = for
+    unused <- Console.printLine("test")
+  yield 9
+>>>
+object a:
+  def forOnTheSameLine(param: String): Task[Int] = for
+    unused <- Console.printLine("test")
+  yield 9
+<<< carrot 1.2: for on next line after = stays broken under keep
+object a:
+  val dumbTask: Task[Unit] =
+    for
+      unused <- Console.printLine("hello")
+    yield ()
+>>>
+object a:
+  val dumbTask: Task[Unit] =
+    for
+      unused <- Console.printLine("hello")
+    yield ()
+<<< carrot 1.3: match after = stays inline under keep (control)
+object a:
+  def m(param: String): Boolean = param match
+    case "yes" => true
+    case _ => false
+>>>
+object a:
+  def m(param: String): Boolean = param match
+    case "yes" => true
+    case _     => false
+<<< carrot 2.1: source-dangled close implies config style, blank line squashed
+object a:
+  final case class ThreeParamsFormatVerically( short: Int,
+    bitLonger: Boolean,
+    byFarTheLongest: Option[Long]
+
+                       )
+>>>
+object a:
+  final case class ThreeParamsFormatVerically(
+    short: Int,
+    bitLonger: Boolean,
+    byFarTheLongest: Option[Long]
+  )
+<<< carrot 2.2: source-inline close keeps params aligned under open paren
+object a:
+  final class NotACaseClass(param1: Int,
+                            param2: Option[Long]):
+    def memberFunction = -1
+>>>
+object a:
+  final class NotACaseClass(param1: Int,
+                            param2: Option[Long]):
+    def memberFunction = -1
+<<< carrot 2.3: overflowing one-line def breaks aligned under paren, close stays inline
+object a:
+  def functionWithALotOfParams(firstParam: Int, secondParam: String, thirdParam: Double, fourthParam: Option[ArrayIndexOutOfBoundsException]): String =
+    "Result"
+>>>
+object a:
+  def functionWithALotOfParams(firstParam: Int,
+                               secondParam: String,
+                               thirdParam: Double,
+                               fourthParam: Option[ArrayIndexOutOfBoundsException]): String =
+    "Result"
+<<< carrot 2.4: comment after = must not dangle the close (idempotency guard)
+object a:
+  def renderSubcategory(subcategory: String,
+                        yellow: Boolean): VdomElement = // TODO
+    someBody(subcategory, yellow)
+>>>
+object a:
+  def renderSubcategory(subcategory: String,
+                        yellow: Boolean): VdomElement = // TODO
+    someBody(subcategory, yellow)
+<<< carrot 2.5: fitting one-line defn sites stay on one line
+object a:
+  final case class ThreeParamStayInline(value1: Int, value2: String, value3: Option[Double])
+  def postNote(locationId: CarrotLocationId, customerId: CarrotCustomerId, text: String, uuid: UUID): ApiTask[Note] =
+    post(locationId, customerId, text, uuid)
+>>>
+object a:
+  final case class ThreeParamStayInline(value1: Int, value2: String, value3: Option[Double])
+  def postNote(locationId: CarrotLocationId, customerId: CarrotCustomerId, text: String, uuid: UUID): ApiTask[Note] =
+    post(locationId, customerId, text, uuid)
