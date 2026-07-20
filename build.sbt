@@ -46,6 +46,26 @@ inThisBuild {
 name := "scalafmtRoot"
 publish / skip := true
 
+// CARROT fork: publish to the Carrot Nexus instead of Sonatype. sbt-ci-release
+// scopes publishTo per project, so these settings must be attached to each
+// published project rather than set in ThisBuild. Credentials come from the
+// environment so CI and local publishing work the same way.
+val carrotPublishSettings = Def.settings(
+  publishTo := Some(
+    "Carrot Artifacts" at
+      "https://artifacts.getcarrot.io/repository/maven-releases/",
+  ),
+  credentials ++= (for {
+    user <- sys.env.get("CARROT_ARTIFACTS_USER")
+    pass <- sys.env.get("CARROT_ARTIFACTS_PASSWORD")
+  } yield Credentials(
+    "Sonatype Nexus Repository Manager",
+    "artifacts.getcarrot.io",
+    user,
+    pass,
+  )).toSeq,
+)
+
 lazy val runAssembly = inputKey[Unit]("Run assembly")
 
 lazy val copyScalaNative = taskKey[Unit]("Copy Scala Native output to root")
@@ -69,6 +89,7 @@ addCommandAlias("test-js", "testsJS/test;cliJS/test")
 addCommandAlias("test-native", "testsNative/test;cliNative/test")
 
 lazy val dynamicCore = project.in(file("scalafmt-dynamic-core")).settings(
+  carrotPublishSettings,
   moduleName := "scalafmt-dynamic-core",
   description := "Implementation of scalafmt-interfaces",
   buildInfoSettings("org.scalafmt.dynamic", "BuildInfo"),
@@ -88,6 +109,7 @@ lazy val dynamicCore = project.in(file("scalafmt-dynamic-core")).settings(
   .enablePlugins(BuildInfoPlugin)
 
 lazy val dynamic = project.in(file("scalafmt-dynamic")).settings(
+  carrotPublishSettings,
   moduleName := "scalafmt-dynamic",
   description := "Implementation of scalafmt-dynamic using coursier",
   libraryDependencies += {
@@ -102,6 +124,7 @@ lazy val dynamic = project.in(file("scalafmt-dynamic")).settings(
 
 lazy val interfaces = crossProject(JVMPlatform, NativePlatform, JSPlatform)
   .withoutSuffixFor(JVMPlatform).in(file("scalafmt-interfaces")).settings(
+    carrotPublishSettings,
     moduleName := "scalafmt-interfaces",
     description :=
       "Dependency-free, pure Java public interfaces to integrate with Scalafmt through a build tool or editor plugin.",
@@ -124,6 +147,7 @@ lazy val interfaces = crossProject(JVMPlatform, NativePlatform, JSPlatform)
 
 lazy val sysops = crossProject(JVMPlatform, NativePlatform, JSPlatform)
   .withoutSuffixFor(JVMPlatform).in(file("scalafmt-sysops")).settings(
+    carrotPublishSettings,
     moduleName := "scalafmt-sysops",
     description := "Scalafmt systems operations",
     scalacSettings,
@@ -136,6 +160,7 @@ lazy val sysops = crossProject(JVMPlatform, NativePlatform, JSPlatform)
 
 lazy val config = crossProject(JVMPlatform, NativePlatform, JSPlatform)
   .withoutSuffixFor(JVMPlatform).in(file("scalafmt-config")).settings(
+    carrotPublishSettings,
     moduleName := "scalafmt-config",
     description := "Scalafmt config parsing",
     scalacSettings,
@@ -147,6 +172,7 @@ lazy val config = crossProject(JVMPlatform, NativePlatform, JSPlatform)
 
 lazy val core = crossProject(JVMPlatform, NativePlatform, JSPlatform)
   .in(file("scalafmt-core")).settings(
+    carrotPublishSettings,
     moduleName := "scalafmt-core",
     buildInfoSettings("org.scalafmt", "Versions"),
     scalacSettings,
@@ -166,6 +192,7 @@ lazy val coreJVM = core.jvm
 
 lazy val macros = crossProject(JVMPlatform, NativePlatform, JSPlatform)
   .in(file("scalafmt-macros")).settings(
+    carrotPublishSettings,
     moduleName := "scalafmt-macros",
     scalacSettings,
     libraryDependencies += scalameta.value,
@@ -205,6 +232,7 @@ val scalacSettings = Def.settings(
 
 lazy val cli = crossProject(JVMPlatform, NativePlatform, JSPlatform)
   .withoutSuffixFor(JVMPlatform).in(file("scalafmt-cli")).settings(
+    carrotPublishSettings,
     moduleName := "scalafmt-cli",
     assembly / aggregate := false,
     assembly / mainClass := Some("org.scalafmt.cli.Cli"),
