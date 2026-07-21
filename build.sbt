@@ -22,8 +22,11 @@ def isScala3 = isScalaVer("3")
 inThisBuild {
   List(
     // CARROT fork: pin the version explicitly (upstream uses sbt-dynver);
-    // bump the suffix on each fork revision.
-    version := "3.11.3-CARROT.1",
+    // bump the suffix on each fork revision. `+` rather than `-` before the
+    // suffix: IntelliJ's bundled scalafmt-dynamic 3.7.17 only parses
+    // `+`-suffixed custom versions (its regex predates the `[-+]` form) and
+    // silently falls back to scalafmt 1.5.1 when the version fails to parse.
+    version := "3.11.3+CARROT.1",
     organization := smorgN,
     homepage := Some(url("https://github.com/scalameta/scalafmt")),
     licenses :=
