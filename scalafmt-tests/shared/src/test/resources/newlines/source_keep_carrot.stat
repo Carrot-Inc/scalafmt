@@ -9,9 +9,9 @@ newlines.configStyle.defnSite {
 danglingParentheses.defnSite = false
 align.openParenDefnSite = true
 continuationIndent.defnSite = 2
-spaces.preserveBefore = ["->", "=>", "extends"]
+spaces.preserveBefore = ["->", "=>"]
 spaces.afterAccessModifier = true
-align.tokens."+" = [{ code = ":", owners = [{ regex = "Term\\.Param", parents = ["Ctor\\.Primary"] }], onlyIfClauseBroken = true, onlyIfCaseClassParam = true }]
+align.tokens."+" = [{ code = ":", owners = [{ regex = "Term\\.Param", parents = ["Ctor\\.Primary"] }], onlyIfClauseBroken = true, onlyIfCaseClassParam = true }, { code = "extends", owners = [{ regex = "Defn\\.EnumCase" }] }]
 trailingCommas = keep
 indent.ctrlBodyIndentOnlyIfBroken = true
 indent.preservePatAltIndent = true
@@ -434,7 +434,7 @@ object a:
     val maxWidthOrHeight: js.UndefOr[Double] = js.undefined,
     val fileType: js.UndefOr[String] = js.undefined
   ) extends js.Object
-<<< carrot 12.1: hand-aligned enum `extends` columns are preserved
+<<< carrot 12.1: enum `extends` columns are aligner-managed (tight)
 object a:
   enum StorageKey[T](val key: String):
     case AdminToken extends StorageKey[String]("admin_token")
@@ -446,7 +446,7 @@ object a:
     case AdminToken extends StorageKey[String]("admin_token")
     case DeviceId   extends StorageKey[UUID]("device_id")
     case WideMenu   extends StorageKey[Boolean]("wide_menu")
-<<< carrot 12.2: unaligned enum `extends` stays unaligned
+<<< carrot 12.2: unaligned enum `extends` gets aligned tightly
 object a:
   enum Color(val hex: String):
     case Red extends Color("ff0000")
@@ -454,8 +454,20 @@ object a:
 >>>
 object a:
   enum Color(val hex: String):
-    case Red extends Color("ff0000")
+    case Red   extends Color("ff0000")
     case Green extends Color("00ff00")
+<<< carrot 12.3: over-padded enum `extends` is tightened to the longest name
+object a:
+  enum StorageKey[T](val key: String):
+    case AdminToken       extends StorageKey[String]("admin_token")
+    case DeviceId    extends StorageKey[UUID]("device_id")
+    case WideMenu           extends StorageKey[Boolean]("wide_menu")
+>>>
+object a:
+  enum StorageKey[T](val key: String):
+    case AdminToken extends StorageKey[String]("admin_token")
+    case DeviceId   extends StorageKey[UUID]("device_id")
+    case WideMenu   extends StorageKey[Boolean]("wide_menu")
 <<< carrot 11.5: ops under a body-on-own-line RHS keep their head-relative column
 object a:
   val records =
