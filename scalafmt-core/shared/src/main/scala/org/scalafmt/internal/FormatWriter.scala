@@ -1257,6 +1257,18 @@ class FormatWriter(formatOps: FormatOps) {
       lazy val noAlignTokens = styleMap.forall(_.align.tokens.isEmpty)
       if (locations.length != tokens.length || noAlignTokens) Map.empty[Int, Int]
       else {
+        // CARROT fork: writer-level pattern-alternative indent preservation
+        // changes real columns after the aligner runs; pre-shift the line so
+        // alignment stops on `|` continuation lines see true output columns.
+        if (styleMap.init.indent.preservePatAltIndent) locations
+          .foreach { fl =>
+            val delta = carrotPatAltShiftDelta(fl)
+            // attribute to the first location of the new line: the shift on
+            // the newline-carrying location is reset at line start
+            val next = fl.formatToken.meta.idx + 1
+            if (delta != 0 && next < locations.length)
+              locations(next).shift += delta
+          }
         var columnShift = 0
         implicit val finalResult = Map.newBuilder[Int, Int]
         val isMultiline = styleMap.init.align.multiline
@@ -1285,8 +1297,21 @@ class FormatWriter(formatOps: FormatOps) {
           def processLineEnd(
               wasSlc: Boolean,
           )(implicit floc: FormatLocation): Unit = {
-            val isBlankLine = floc.state.mod.isBlankLine ||
-              extraBlankTokens.contains(floc.formatToken.idx)
+            val isBlankLine = (floc.state.mod.isBlankLine ||
+              extraBlankTokens.contains(floc.formatToken.idx)) && {
+              // CARROT fork: align.enumeratorsAcrossBlankLines — blank lines
+              // inside a for-comprehension do not split alignment blocks.
+              !styleMap.init.align.enumeratorsAcrossBlankLines || {
+                val c =
+                  if (alignContainer ne null) alignContainer
+                  else prevAlignContainer
+                c match {
+                  case _: Term.EnumeratorsBlock | _: Term.For |
+                      _: Term.ForYield => false
+                  case _ => true
+                }
+              }
+            }
             if (alignContainer ne null) {
               val candidates = columnCandidates.result()
               val block = getOrCreateBlock(alignContainer)
@@ -1381,6 +1406,36 @@ class FormatWriter(formatOps: FormatOps) {
       }
     }
 
+    // CARROT fork: the writer-side offset applied by preservePatAltIndent
+    // (see carrotPreservedLineIndent), computed statically for the aligner.
+    private def carrotPatAltShiftDelta(fl: FormatLocation): Int = {
+      val ft = fl.formatToken
+      val style = fl.style
+      if (
+        !fl.state.split.isNL || !style.newlines.keep ||
+        !style.indent.preservePatAltIndent || ft.meta.right.text != "|" ||
+        !ft.meta.rightOwner.is[Pat.Alternative] || !ft.hasBreak
+      ) 0
+      else {
+        @tailrec
+        def toCase(t: Tree): Tree = t match {
+          case c: Case => c
+          case _ => t.parent match {
+              case Some(p) => toCase(p)
+              case None => null
+            }
+        }
+        val c = toCase(ft.meta.rightOwner)
+        if (c eq null) 0
+        else {
+          val offset = ft.right.pos.startColumn - c.pos.startColumn
+          val computed = fl.state.indentation
+          if (offset <= 0) 0
+          else math.max(0, computed - style.indent.caseSite + offset) - computed
+        }
+      }
+    }
+
     private def isEarlierLine(t: Tree)(implicit fl: FormatLocation): Boolean = {
       val idx = getHead(t).meta.idx + 1
       idx <= fl.formatToken.meta.idx && // e.g., leading comments
@@ -1424,8 +1479,10 @@ class FormatWriter(formatOps: FormatOps) {
               case _ => p.fun eq child
             }) => getAlignContainerParent(p, depth)
         // containers that can be traversed further if on same line
+        // (CARROT fork: or always, with align.multilineMembers)
         case Some(p @ (_: Case | _: Enumerator)) =>
-          if (isEarlierLine(p)) (p, depth) else getAlignContainerParent(p, depth)
+          if (isEarlierLine(p) && !fl.style.align.multilineMembers) (p, depth)
+          else getAlignContainerParent(p, depth)
         // containers that can be traversed further if lhs single-line
         case Some(p @ AlignContainer.WithBody(mods, b)) =>
           val keepGoing = {

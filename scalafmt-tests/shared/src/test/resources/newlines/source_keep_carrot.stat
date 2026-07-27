@@ -9,9 +9,15 @@ newlines.configStyle.defnSite {
 danglingParentheses.defnSite = false
 align.openParenDefnSite = true
 continuationIndent.defnSite = 2
-spaces.preserveBefore = ["->", "=>"]
+spaces.preserveBefore = ["->"]
 spaces.afterAccessModifier = true
-align.tokens."+" = [{ code = ":", owners = [{ regex = "Term\\.Param", parents = ["Ctor\\.Primary"] }], onlyIfClauseBroken = true, onlyIfCaseClassParam = true }, { code = "extends", owners = [{ regex = "Defn\\.EnumCase" }] }]
+align.enumeratorsAcrossBlankLines = true
+align.multiline = true
+align.multilineMembers = true
+align.allowOverflow = true
+align.tokenCategory."Equals" = "Assign"
+align.tokenCategory."LeftArrow" = "Assign"
+align.tokens."+" = [{ code = "<-" }, { code = "=", owners = [{ regex = "Enumerator\\.Val" }] }, { code = ":", owners = [{ regex = "Term\\.Param", parents = ["Ctor\\.Primary"] }], onlyIfClauseBroken = true, onlyIfCaseClassParam = true }, { code = "extends", owners = [{ regex = "Defn\\.EnumCase" }] }]
 trailingCommas = keep
 indent.ctrlBodyIndentOnlyIfBroken = true
 indent.preservePatAltIndent = true
@@ -171,7 +177,7 @@ object a:
     case Some(_) => (a, b, c)
       .mapN(g)
       .map(h)
-    case None => none
+    case None    => none
 <<< carrot 5.2: broken case body still gets one body indent
 object a:
   def f(x: Option[Int]): Option[Int] = x match
@@ -185,7 +191,7 @@ object a:
     case Some(_) =>
       (a, b, c)
         .mapN(g)
-    case None => none
+    case None    => none
 <<< carrot 5.3: multiline pattern keeps caseSite indent with deferred body
 object a:
   def f(x: Option[Int]): Boolean = x match
@@ -197,7 +203,7 @@ object a:
   def f(x: Option[Int]): Boolean = x match
     case Some(1) |
         Some(2) => true
-    case _ => false
+    case _      => false
 <<< carrot 6.1: multiline chain body stays after then, anchored at statement level
 object a:
   val timeWindow: V[Option[TimeWindow]] =
@@ -250,7 +256,7 @@ object a:
 object a:
   def f(e: Err): Boolean = e match
     case EmailSubjectNotSet
-       | EmailTitleNotSet => true
+       | EmailTitleNotSet   => true
     case EmailMessageNotSet => false
 <<< carrot 7.2: leading-pipe pattern keeps under-first-pattern source offset
 object a:
@@ -265,8 +271,8 @@ object a:
     case BlastState.Draft
          | BlastState.Pending
          | BlastState.Sending => 1
-    case BlastState.Sent => 2
-<<< carrot 7.3: multiline-pattern case arrow keeps hand padding; single-line arrows stay aligner-managed
+    case BlastState.Sent      => 2
+<<< carrot 7.3: multiline-pattern case arrow joins the alignment column
 object a:
   def f(x: T): Int = x match
     case (_, Some(e), _)      => 1
@@ -276,10 +282,10 @@ object a:
 >>>
 object a:
   def f(x: T): Int = x match
-    case (_, Some(e), _)      => 1
+    case (_, Some(e), _)    => 1
     case (Some(_), _, _)
-       | (_, _, Some(_))      => 2
-    case (None, None, None)   => 3
+       | (_, _, Some(_))    => 2
+    case (None, None, None) => 3
 <<< carrot 8.1: multiline match body stays after lambda arrow
 object a:
   private val getClasses = (orderActionType: OrderActionType) => orderActionType match
@@ -492,3 +498,31 @@ object a:
     def x = 1
   protected [a] def y = 2
   private [b] def z = 3
+<<< carrot 14.1: for-comprehension aligns as one table across blank lines
+object a:
+  def f = for
+    reqId <- generateRequestId
+    credentials <- getStoredCredentials
+    backendBundle = selectBackendUrlBundle(credentials)
+
+    tryWithBasePath = (basePath: String) =>
+      fetch(basePath)
+
+    result <-
+      if retry then tryWithBasePath(primary)
+      else tryWithBasePath(secondary)
+  yield result
+>>>
+object a:
+  def f = for
+    reqId          <- generateRequestId
+    credentials    <- getStoredCredentials
+    backendBundle   = selectBackendUrlBundle(credentials)
+
+    tryWithBasePath = (basePath: String) =>
+      fetch(basePath)
+
+    result         <-
+      if retry then tryWithBasePath(primary)
+      else tryWithBasePath(secondary)
+  yield result

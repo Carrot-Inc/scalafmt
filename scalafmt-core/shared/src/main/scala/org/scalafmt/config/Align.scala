@@ -85,6 +85,13 @@ case class Align(
     beforeOpenParenCallSite: Boolean = false,
     inInterpolation: Boolean = false,
     tokens: Seq[AlignToken] = Seq(AlignToken.caseArrow),
+    // CARROT fork: when true, blank lines inside a for-comprehension do not
+    // split alignment blocks — the whole for aligns as one table.
+    enumeratorsAcrossBlankLines: Boolean = false,
+    // CARROT fork: when true, an alignment candidate on a continuation line
+    // of a multiline member (e.g. the arrow of a multiline-pattern case)
+    // still belongs to the enclosing container's alignment block.
+    multilineMembers: Boolean = false,
     arrowEnumeratorGenerator: Boolean = false,
     tokenCategory: Map[String, String] = Map(),
     treeCategory: Map[String, String] = Map(
