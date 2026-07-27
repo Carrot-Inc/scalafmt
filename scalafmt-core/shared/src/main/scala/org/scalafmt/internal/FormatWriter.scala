@@ -2133,11 +2133,12 @@ object FormatWriter {
         (!floc.style.alignOnlyIfClauseBroken.contains(code) ||
           owner.parent.exists(clauseBroken)) &&
         // CARROT fork: onlyIfCaseClassParam — owner must be a modifier-less
-        // param of a case-class primary ctor.
+        // param of a case-class or enum-case primary ctor.
         (!floc.style.alignOnlyIfCaseClassParam.contains(code) || (owner match {
           case p: Term.Param if p.mods.isEmpty => p.parent.flatMap(_.parent)
               .flatMap(_.parent).exists {
                 case c: Defn.Class => c.mods.exists(_.is[Mod.Case])
+                case _: Defn.EnumCase => true
                 case _ => false
               }
           case _ => false

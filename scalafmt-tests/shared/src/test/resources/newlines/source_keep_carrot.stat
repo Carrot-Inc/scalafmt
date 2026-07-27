@@ -563,3 +563,21 @@ object a:
     permission: UserPermission
   ): Unit =
     body
+<<< carrot 17.1: multiline enum-case params get the type column
+object a:
+  enum Msg:
+    case Created(
+      id: MsgId,
+      createdAt: Instant,
+      body: String
+    )
+    case Deleted(id: MsgId)
+>>>
+object a:
+  enum Msg:
+    case Created(
+      id:        MsgId,
+      createdAt: Instant,
+      body:      String
+    )
+    case Deleted(id: MsgId)

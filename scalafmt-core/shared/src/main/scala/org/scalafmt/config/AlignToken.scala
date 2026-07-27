@@ -19,8 +19,8 @@ case class AlignToken(
     // config-style layout); tokens in inline-start clauses are left alone.
     onlyIfClauseBroken: Boolean = false,
     // CARROT fork: when true, the owner must be a modifier-less parameter of
-    // a `case` class primary constructor (plain fields); val/var params and
-    // non-case classes are left alone.
+    // a `case` class or enum-case primary constructor (plain fields); val/var
+    // params and non-case classes are left alone.
     onlyIfCaseClassParam: Boolean = false,
 ) {
   def getMatcher: Seq[TreePattern.Matcher] = owners.distinct.map(_.getMatcher)
