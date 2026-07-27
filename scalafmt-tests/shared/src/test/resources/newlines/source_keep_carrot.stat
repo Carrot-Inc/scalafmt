@@ -11,6 +11,8 @@ align.openParenDefnSite = true
 continuationIndent.defnSite = 2
 spaces.preserveBefore = ["->"]
 trailingCommas = keep
+rewrite.scala3.convertToNewSyntax = true
+rewrite.scala3.removeOptionalBraces.enabled = true
 <<< carrot 1.1: braceless for-yield after = stays inline under keep
 object a:
   def forOnTheSameLine(param: String): Task[Int] = for
@@ -128,3 +130,24 @@ val m = Map(
   "a"    -> 1,
   "long-key"   -> 2,
 )
+<<< carrot 4.1: single-line anon-class braces stay inline under keep
+object a:
+  def download(text: String, mimeType: String): Unit =
+    val blob = new Blob(js.Array(text), new BlobPropertyBag { `type` = mimeType })
+    use(blob)
+>>>
+object a:
+  def download(text: String, mimeType: String): Unit =
+    val blob = new Blob(js.Array(text), new BlobPropertyBag { `type` = mimeType })
+    use(blob)
+<<< carrot 4.2: multi-line template braces still convert to colon syntax
+object a:
+  val bag = new BlobPropertyBag {
+    `type` = mimeType
+    endings = "transparent"
+  }
+>>>
+object a:
+  val bag = new BlobPropertyBag:
+    `type` = mimeType
+    endings = "transparent"

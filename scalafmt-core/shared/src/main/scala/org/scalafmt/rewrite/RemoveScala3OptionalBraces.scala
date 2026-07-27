@@ -60,7 +60,13 @@ private class RemoveScala3OptionalBraces(implicit val ftoks: FormatTokens)
           else null
         case _ if !settings.isRemoveEnabled => null
         case t: Template.Body if !t.isEmpty =>
-          if (t.parent.parent.is[Defn.Given]) removeToken
+          // CARROT fork: under newlines.source=keep, leave single-line braces
+          // alone — the colon-template form cannot stay inline, so converting
+          // would force line breaks the source didn't have.
+          val sourceInline = (style.newlines.source eq Newlines.keep) &&
+            x.pos.startLine == ftoks.matchingRight(ft).left.pos.startLine
+          if (sourceInline) null
+          else if (t.parent.parent.is[Defn.Given]) removeToken
           else replaceToken(":")(new T.Colon(x.input, x.dialect, x.start))
         case t: Term.ArgClause => onLeftForArgClause(t)
         case t: Term.PartialFunction => t.parent match {
