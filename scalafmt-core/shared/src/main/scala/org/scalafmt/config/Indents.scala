@@ -52,11 +52,15 @@ case class Indents(
     // line in a multiline case pattern keeps its source column offset
     // relative to the `case` keyword instead of the fixed caseSite indent.
     preservePatAltIndent: Boolean = false,
-    // CARROT fork: under newlines.source=keep with
-    // newlines.beforeOpenParenDefnSite=keep, a defn-site parameter clause
-    // `(` that starts a line keeps its source column offset relative to the
-    // defn statement (e.g. hand-aligned under the first clause's paren).
+    // CARROT fork: under newlines.source=keep, a source break before a
+    // subsequent defn-site parameter clause is kept, with the clause's `(`
+    // keeping its source column offset relative to the defn statement
+    // (e.g. hand-aligned under the first clause's paren).
     preserveParamClauseIndent: Boolean = false,
+    // CARROT fork: under newlines.source=keep, a source break before the `=`
+    // of a definition is kept, with the `=` line keeping its source column
+    // offset relative to the statement.
+    preserveAssignIndent: Boolean = false,
     matchSite: Option[Int] = None,
     private[config] val ctorSite: Option[Int] = None,
     extraBeforeOpenParenDefnSite: Int = 0,

@@ -3816,3 +3816,28 @@ object SplitsAfterOptionalBracesKeyword extends Splits {
   }
 
 }
+
+object SplitsBeforeEquals extends Splits {
+  override def get(implicit
+      ft: FT,
+      fo: FormatOps,
+      cfg: ScalafmtConfig,
+  ): Seq[Split] = {
+    import ft._
+    // CARROT fork: with indent.preserveAssignIndent under
+    // newlines.source=keep, a source break before the `=` of a definition is
+    // kept, and the `=` line keeps its source column offset relative to the
+    // statement (carried in the split indent so state and writer agree).
+    rightOwner match {
+      case t: Defn
+          if cfg.indent.preserveAssignIndent && cfg.newlines.keep &&
+            hasBreak && !left.is[T.Comment] =>
+        val offset = right.pos.startColumn - t.pos.startColumn
+        val indentLen = if (offset > 0) offset else cfg.indent.main
+        Seq(Split(Newline, 0).withIndent(
+          Indent(indentLen, fo.tokens.next(ft), ExpiresOn.After),
+        ))
+      case _ => Nil
+    }
+  }
+}

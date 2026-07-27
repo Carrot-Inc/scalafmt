@@ -15,6 +15,7 @@ trailingCommas = keep
 indent.ctrlBodyIndentOnlyIfBroken = true
 indent.preservePatAltIndent = true
 indent.preserveParamClauseIndent = true
+indent.preserveAssignIndent = true
 rewrite.scala3.convertToNewSyntax = true
 rewrite.scala3.removeOptionalBraces.enabled = true
 <<< carrot 1.1: braceless for-yield after = stays inline under keep
@@ -365,3 +366,25 @@ object a:
                               (company: CompanyInfoResponse,
                                space: SpaceInfoResponse): VdomNode =
     node
+<<< carrot 11.1: source break before val `=` is kept at its offset
+object a:
+  def render =
+    val usaStateOptions: List[VdomTag]
+       = option(key := "None", disabled := stateValue.isDefined, value := "None", "State")
+       +: UsaState.values.toList.map(ab => option(value := ab.entryName, key := ab.entryName))
+       :+ option(key := "Other", disabled := false, value := "Other", "Other")
+    usaStateOptions
+>>>
+object a:
+  def render =
+    val usaStateOptions: List[VdomTag]
+       = option(key := "None", disabled := stateValue.isDefined, value := "None", "State")
+      +: UsaState.values.toList.map(ab => option(value := ab.entryName, key := ab.entryName))
+      :+ option(key := "Other", disabled := false, value := "Other", "Other")
+    usaStateOptions
+<<< carrot 11.2: inline `=` stays inline
+object a:
+  val simple: Int = 1 + 2
+>>>
+object a:
+  val simple: Int = 1 + 2

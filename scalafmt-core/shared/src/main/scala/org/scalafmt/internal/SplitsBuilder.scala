@@ -89,6 +89,7 @@ object SplitsBuilder {
       SplitsBeforeLeftBracket,
     )
     builder.add[T.Colon](SplitsBeforeColon)
+    builder.add[T.Equals](SplitsBeforeEquals)
     builder.add[T.Subtype](SplitsBeforeSubtype)
     builder.add[T.Supertype](SplitsBeforeSupertype)
     builder.add[T.Viewbound](SplitsBeforeViewbound)
