@@ -455,3 +455,15 @@ object a:
   enum Color(val hex: String):
     case Red extends Color("ff0000")
     case Green extends Color("00ff00")
+<<< carrot 11.5: ops under a body-on-own-line RHS keep their head-relative column
+object a:
+  val records =
+    List.empty
+      ++ mbStats.map(f)
+      ++ other.map(g)
+>>>
+object a:
+  val records =
+    List.empty
+      ++ mbStats.map(f)
+      ++ other.map(g)

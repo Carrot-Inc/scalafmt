@@ -290,7 +290,14 @@ class InfixSplits(
     else fullInfix.parent match {
       case Some(p @ (_: Defn | _: Term.Assign)) =>
         val op = leftInfix.op
-        val offset = op.pos.startColumn - p.pos.startColumn
+        // anchor at whichever begins the op's reference line in the source:
+        // the chain head when it leads its own line (RHS body on its own
+        // line, ambient = that line's indent), else the statement.
+        val headFt = ftoks.tokenJustBefore(fullInfix)
+        val anchorCol =
+          if (headFt.hasBreak) headFt.right.pos.startColumn
+          else p.pos.startColumn
+        val offset = op.pos.startColumn - anchorCol
         if (offset > 0 && ftoks.tokenJustBefore(op).hasBreak) offset
         else default
       case _ => default
