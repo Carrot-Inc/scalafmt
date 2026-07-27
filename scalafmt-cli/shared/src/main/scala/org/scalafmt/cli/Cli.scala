@@ -1,7 +1,7 @@
 package org.scalafmt.cli
 
 import org.scalafmt.CompatCollections.JavaConverters._
-import org.scalafmt.Versions.{stable => stableVersion}
+import org.scalafmt.Versions.{nightly, stable => stableVersion}
 import org.scalafmt.config.{ConfParsed, ScalafmtConfig}
 import org.scalafmt.sysops.{FileOps, PlatformFileOps, PlatformRunOps}
 
@@ -142,8 +142,11 @@ object Cli extends CliUtils {
         )
       } {
         case Left(error) => Left(s"error: invalid configuration: $error")
-        case Right(`stableVersion`) =>
-          options.common.debug.println(s"Using core runner [$stableVersion]")
+        // CARROT fork: also accept the full build version (e.g.
+        // 3.11.3+CARROT.2) — stableVersion strips the `+` suffix, which would
+        // wrongly route an exact-version match through the dynamic runner.
+        case Right(v) if v == stableVersion || v == nightly =>
+          options.common.debug.println(s"Using core runner [$v]")
           Right(ScalafmtCoreRunner)
         case Right(v) =>
           val runnerOpt = if (isNativeImage) None else getDynamicRunner
