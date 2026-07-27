@@ -85,7 +85,8 @@ object SplitsBuilder {
     builder.add[T.RightArrow](SplitsBeforeRightArrow)
     builder.add[T.Semicolon](SplitsBeforeSemicolon)
     builder.add[T.LeftParen](SplitsBeforeLeftParenOrBracket)
-    builder.add[T.LeftBracket](SplitsBeforeLeftParenOrBracket,
+    builder.add[T.LeftBracket](SplitsBeforeModBracket,
+      SplitsBeforeLeftParenOrBracket,
       SplitsBeforeLeftBracket,
     )
     builder.add[T.Colon](SplitsBeforeColon)

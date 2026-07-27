@@ -3841,3 +3841,20 @@ object SplitsBeforeEquals extends Splits {
     }
   }
 }
+
+object SplitsBeforeModBracket extends Splits {
+  override def get(implicit
+      ft: FT,
+      fo: FormatOps,
+      cfg: ScalafmtConfig,
+  ): Seq[Split] = {
+    import ft._
+    // CARROT fork: spaces.afterAccessModifier — always put a space between
+    // an access modifier and its qualifier bracket (`private [scope]`).
+    rightOwner match {
+      case _: Mod.Private | _: Mod.Protected
+          if cfg.spaces.afterAccessModifier => Seq(Split(Space, 0))
+      case _ => Nil
+    }
+  }
+}

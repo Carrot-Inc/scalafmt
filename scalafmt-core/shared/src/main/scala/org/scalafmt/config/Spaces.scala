@@ -73,6 +73,9 @@ case class Spaces(
     // instead of being normalized to a single space. Keeps hand-aligned
     // tables aligned and leaves unaligned code untouched.
     preserveBefore: Seq[String] = Nil,
+    // CARROT fork: if true, always puts a space between an access modifier
+    // and its qualifier bracket: `private [scope]` house style.
+    afterAccessModifier: Boolean = false,
 ) {
   def isSpaceAfterKeyword(tokenAfter: T): Boolean = afterKeywordBeforeParen ||
     !tokenAfter.is[T.LeftParen]
