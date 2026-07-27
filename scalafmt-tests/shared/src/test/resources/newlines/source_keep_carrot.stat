@@ -7,6 +7,12 @@ newlines.configStyle.defnSite {
   preferBreakBeforeClose = true
 }
 danglingParentheses.defnSite = false
+danglingParentheses.callSite = false
+newlines.configStyle.callSite {
+  prefer = true
+  forceIfOptimized = false
+  preferBreakBeforeClose = true
+}
 align.openParenDefnSite = true
 continuationIndent.defnSite = 2
 spaces.preserveBefore = ["->"]
@@ -581,3 +587,52 @@ object a:
       body:      String
     )
     case Deleted(id: MsgId)
+<<< carrot 18.1: call with breaks between args normalizes to config style
+object a:
+  def setup(): Unit =
+    window.addEventListener("mouseup",
+      handleUp,
+      new EventListenerOptions:
+        once = true
+    )
+>>>
+object a:
+  def setup(): Unit =
+    window.addEventListener(
+      "mouseup",
+      handleUp,
+      new EventListenerOptions:
+        once = true
+    )
+<<< carrot 18.2: all-inline call stays inline
+object a:
+  def setup(): Unit =
+    window.addEventListener("mousemove", handleMove)
+>>>
+object a:
+  def setup(): Unit =
+    window.addEventListener("mousemove", handleMove)
+<<< carrot 18.3: break inside a glued last arg is not a clause-level break
+object a:
+  def run = runLayer(eff {
+    prepare()
+    compute()
+  })
+>>>
+object a:
+  def run = runLayer(eff {
+    prepare()
+    compute()
+  })
+<<< carrot 18.4: multiline tuple stays source-driven
+object a:
+  def f = (lastRequestId,
+    props.order.lastPushId,
+    props.order.pushToPosError) match
+    case _ => 1
+>>>
+object a:
+  def f = (lastRequestId,
+    props.order.lastPushId,
+    props.order.pushToPosError) match
+    case _ => 1

@@ -1862,24 +1862,29 @@ object SplitsAfterLeftParenOrBracket {
       clauseSiteFlags.configStyle
     val closeBreak = beforeClose.hasBreak
     val forceConfigStyle = mustForceConfigStyle(ft)
-    // CARROT fork: with a glued open and args already spanning lines in the
-    // source, a dangled close does not imply config style — the non-config
-    // path preserves the breaks, alignment keeps params under the paren,
-    // and the close-paren keep preserves the dangle (which may also be
-    // manufactured by an indentation-based last arg; reinterpreting it as
-    // config style is not idempotent).
-    val carrotKeepNonConfig = cfg.newlines.keep &&
+    // CARROT fork, defn sites: with a glued open and params already spanning
+    // lines aligned under the open paren, a dangled close does not imply
+    // config style — the non-config path preserves the breaks, alignment
+    // keeps params under the paren, and the close-paren keep preserves the
+    // dangle. Params NOT under the paren mean config style (normalize).
+    val carrotKeepNonConfig = (defnSite || tupleSite) && cfg.newlines.keep &&
       cfg.indent.ctrlBodyIndentOnlyIfBroken && noBreak &&
       beforeClose.left.pos.startLine > right.pos.startLine &&
-      (!defnSite || {
-        // defn sites only when line-starting params sit under the open paren
-        // in the source; otherwise the dangled close means config style
+      (tupleSite || {
         val col = right.pos.startColumn
         args.forall(arg =>
           !tokenJustBefore(arg).hasBreak || arg.pos.startColumn == col,
         )
       })
-    val onlyConfigStyle = forceConfigStyle ||
+    // CARROT fork, call sites ("rule B"): ANY source break at the clause
+    // level — between args or before the close — normalizes the clause to
+    // canonical config style; all-inline clauses stay inline. Tuples are
+    // exempt (source-driven). Breaks inside a single glued argument's own
+    // body do not count as clause-level breaks.
+    val carrotCallConfigStyle = !defnSite && !tupleSite &&
+      cfg.newlines.keep && cfg.indent.ctrlBodyIndentOnlyIfBroken &&
+      (closeBreak || args.exists(arg => tokenJustBefore(arg).hasBreak))
+    val onlyConfigStyle = forceConfigStyle || carrotCallConfigStyle ||
       !carrotKeepNonConfig &&
       preserveConfigStyle(ft, mustDangleForTrailingCommas || closeBreak)
     val configStyleFlag = configStyleFlags.prefer
@@ -1930,6 +1935,13 @@ object SplitsAfterLeftParenOrBracket {
     val noSplitMod =
       if (skipNoSplit) null
       else getNoSplitAfterOpening(ft, commentNL = null, spaceOk = !isBracket)
+
+    // CARROT fork: a tuple with a glued open is preserved as-source — no
+    // cost competition (interior breaks and the close-paren placement are
+    // preserved by their own keep rules; the indent keeps continuation
+    // elements one level in).
+    if (carrotKeepNonConfig && tupleSite && (noSplitMod ne null))
+      return Seq(Split(noSplitMod, 0).withIndent(indent))
 
     val noSplitsForAssign = rightIsCommentWithBreak || defnSite || isBracket ||
       !sourceIgnored && configStyleFlag && hasBreak
