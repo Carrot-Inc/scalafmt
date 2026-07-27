@@ -1477,8 +1477,19 @@ object SplitsBeforeRightParen extends Splits {
         // lines before the close are still squashed.
         def carrotKeepClose = cfg.indent.ctrlBodyIndentOnlyIfBroken &&
           cfg.newlines.keepBreak(hasBreak)
+        // CARROT fork rule B: the close of a call-site arg clause with
+        // clause-level source breaks dangles (config style) even when the
+        // source tucked it — policies alone cannot split nested tucked
+        // closes in one pass.
+        def carrotConfigClose = cfg.indent.ctrlBodyIndentOnlyIfBroken &&
+          cfg.newlines.keep &&
+          (rightOwner match {
+            case ac: Term.ArgClause => ac.values
+                .exists(arg => fo.tokens.tokenJustBefore(arg).hasBreak)
+            case _ => false
+          })
         if (nlOnly) nlMod
-        else if (carrotKeepClose) Newline
+        else if (carrotKeepClose || carrotConfigClose) Newline
         else Space(cfg.spaces.inParentheses)
     }
     Seq(Split(mod, 0))
