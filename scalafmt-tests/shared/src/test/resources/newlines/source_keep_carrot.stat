@@ -353,3 +353,15 @@ object a:
     bitLonger:       Boolean,
     byFarTheLongest: Option[Long]
   )
+<<< carrot 9.4: multiline second clause params align under its own paren
+object a:
+  private def renderSpaceTitle(thisSpaceId: Option[SpaceId])
+                              (company: CompanyInfoResponse,
+                               space: SpaceInfoResponse): VdomNode =
+    node
+>>>
+object a:
+  private def renderSpaceTitle(thisSpaceId: Option[SpaceId])
+                              (company: CompanyInfoResponse,
+                               space: SpaceInfoResponse): VdomNode =
+    node

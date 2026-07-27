@@ -499,25 +499,10 @@ class FormatWriter(formatOps: FormatOps) {
           }
           preserved(toCase(tok.meta.rightOwner), style.indent.caseSite)
         }
-        // indent.preserveParamClauseIndent: a defn-site parameter clause `(`
-        // broken before (newlines.beforeOpenParenDefnSite=keep), anchored at
-        // the defn statement (region = the defn-site continuation indent).
-        else if (
-          style.indent.preserveParamClauseIndent &&
-          tok.right.is[T.LeftParen] && tok.meta.rightOwner.is[Member.ParamClause]
-        ) {
-          @tailrec
-          def toStmt(t: Tree): Tree = t match {
-            case _: Member.ParamClause | _: Member.ParamClauseGroup |
-                _: Ctor.Primary => t.parent match {
-                case Some(p) => toStmt(p)
-                case None => null
-              }
-            case _ => t
-          }
-          val stmt = toStmt(tok.meta.rightOwner)
-          preserved(stmt, style.indent.getDefnSite(tok.meta.rightOwner))
-        } else computed
+        // (param-clause offsets are handled at the split level in
+        // Splits.carrotKeepClauseSplits, so the search state and writer
+        // agree; only pattern alternatives are preserved here.)
+        else computed
       }
 
       private def appendWhitespace(alignOffset: Int, delayedAlign: Int)(implicit
