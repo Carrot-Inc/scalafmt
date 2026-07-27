@@ -1908,15 +1908,19 @@ object SplitsAfterLeftParenOrBracket {
     // one-arg-per-line and dangling-close policies still apply.
     val carrotGluedConfigStyle = onlyConfigStyle && cfg.newlines.keep &&
       cfg.indent.ctrlBodyIndentOnlyIfBroken && noBreak &&
-      beforeClose.left.pos.startLine > right.pos.startLine && {
-        // only when the source keeps every line-starting arg aligned under
-        // the open paren (the under-paren style with a dangled close);
-        // otherwise normalize to config style
+      beforeClose.left.pos.startLine > right.pos.startLine &&
+      (!defnSite || {
+        // defn sites keep the glued open only when the source keeps every
+        // line-starting param aligned under the open paren (the under-paren
+        // style with a dangled close); otherwise normalize to config style.
+        // Call sites keep the glued open unconditionally — a dangled close
+        // may be manufactured by an indentation-based last arg, and
+        // reinterpreting it as config style is not idempotent.
         val col = right.pos.startColumn
         args.forall(arg =>
           !tokenJustBefore(arg).hasBreak || arg.pos.startColumn == col,
         )
-      }
+      })
     val skipNoSplit = rightIsCommentWithBreak ||
       !noSplitForNL && !alignTuple && !carrotGluedConfigStyle &&
       (cfg.newlines.keepBreak(hasBreak) || {
