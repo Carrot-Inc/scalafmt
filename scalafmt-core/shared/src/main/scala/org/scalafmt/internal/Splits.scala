@@ -1892,9 +1892,14 @@ object SplitsAfterLeftParenOrBracket {
     // canonical config style; all-inline clauses stay inline. Tuples are
     // exempt (source-driven). Breaks inside a single glued argument's own
     // body do not count as clause-level breaks.
-    val carrotCallConfigStyle = !defnSite && !tupleSite &&
+    val carrotCallConfigStyle = !defnSite && !tupleSite && !isBracket &&
       cfg.newlines.keep && cfg.indent.ctrlBodyIndentOnlyIfBroken &&
-      (closeBreak || args.exists(arg => tokenJustBefore(arg).hasBreak))
+      (closeBreak || args.exists(arg => tokenJustBefore(arg).hasBreak) ||
+        // a source-inline clause that cannot fit will wrap anyway — go to
+        // config style in ONE pass, or the next pass would read the wrap's
+        // breaks as the trigger (not idempotent)
+        noBreak && right.pos.startLine == close.left.pos.startLine &&
+        close.left.pos.endColumn > cfg.maxColumn)
     val onlyConfigStyle = forceConfigStyle || carrotCallConfigStyle ||
       !carrotKeepNonConfig &&
       preserveConfigStyle(ft, mustDangleForTrailingCommas || closeBreak)
@@ -1953,6 +1958,29 @@ object SplitsAfterLeftParenOrBracket {
     // elements one level in).
     if (carrotKeepNonConfig && tupleSite && (noSplitMod ne null))
       return Seq(Split(noSplitMod, 0).withIndent(indent))
+
+    // CARROT fork rule B complement: a call clause with NO clause-level
+    // source breaks whose interior still spans lines (the glued trailing-arg
+    // pattern, e.g. f("x", Some( ... multiline ... ))) is preserved
+    // as-source — the search must not explode it, or the next pass would
+    // read the new breaks as a config-style trigger.
+    if (
+      !defnSite && !tupleSite && cfg.newlines.keep &&
+      cfg.indent.ctrlBodyIndentOnlyIfBroken && noBreak &&
+      !carrotCallConfigStyle &&
+      beforeClose.left.pos.startLine > right.pos.startLine &&
+      (noSplitMod ne null)
+    )
+      // no indent region: interior lines are governed by the nested
+      // structures they belong to; the policy keeps the clause's own commas
+      // glued (nested clauses keep their freedom)
+      return Seq(Split(noSplitMod, 0).withPolicy(
+        Policy.onLeft(close, prefix = "CARROT-GLUE") {
+          case Decision(xft, ss)
+              if xft.left.is[T.Comma] && (xft.meta.leftOwner eq leftOwner) =>
+            ss.filterNot(_.isNL)
+        },
+      ))
 
     val noSplitsForAssign = rightIsCommentWithBreak || defnSite || isBracket ||
       !sourceIgnored && configStyleFlag && hasBreak

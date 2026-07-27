@@ -636,3 +636,17 @@ object a:
     props.order.lastPushId,
     props.order.pushToPosError) match
     case _ => 1
+<<< carrot 18.5: glued trailing-arg pattern with parens is preserved
+object a:
+  def render = div(
+    labelAndContent("App Notification", Some(
+      progressBar("bg")(tokensA, tokensB)
+    )).when(enabled),
+  )
+>>>
+object a:
+  def render = div(
+    labelAndContent("App Notification", Some(
+      progressBar("bg")(tokensA, tokensB)
+    )).when(enabled),
+  )
