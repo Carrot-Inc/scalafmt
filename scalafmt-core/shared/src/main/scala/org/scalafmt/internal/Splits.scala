@@ -3829,7 +3829,7 @@ object SplitsBeforeEquals extends Splits {
     // kept, and the `=` line keeps its source column offset relative to the
     // statement (carried in the split indent so state and writer agree).
     rightOwner match {
-      case t: Defn
+      case t @ (_: Defn | _: Term.Assign)
           if cfg.indent.preserveAssignIndent && cfg.newlines.keep &&
             hasBreak && !left.is[T.Comment] =>
         val offset = right.pos.startColumn - t.pos.startColumn

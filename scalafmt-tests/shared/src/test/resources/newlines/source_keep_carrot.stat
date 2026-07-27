@@ -388,3 +388,33 @@ object a:
 >>>
 object a:
   val simple: Int = 1 + 2
+<<< carrot 11.3: bare-headed infix body stays on the `=` line
+object a:
+  def f =
+    val canSend
+       = canSave
+      && other
+    canSend
+>>>
+object a:
+  def f =
+    val canSend
+       = canSave
+      && other
+    canSend
+<<< carrot 11.4: named-arg break before `=` is kept
+object a:
+  def f = dropdownOptions(DropdownProps(
+    containerClassName = "flex-1",
+    items
+       = DropdownItem("No Fee", none)
+      +: fees.map(mkItem)
+  ))
+>>>
+object a:
+  def f = dropdownOptions(DropdownProps(
+    containerClassName = "flex-1",
+    items
+       = DropdownItem("No Fee", none)
+      +: fees.map(mkItem)
+  ))
