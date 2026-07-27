@@ -275,3 +275,27 @@ object a:
     case (Some(_), _, _)
        | (_, _, Some(_))      => 2
     case (None, None, None)   => 3
+<<< carrot 8.1: multiline match body stays after lambda arrow
+object a:
+  private val getClasses = (orderActionType: OrderActionType) => orderActionType match
+    case Edit
+       | Print
+       | Message  => "bg-cw05 border-cw10"
+    case Complete => "bg-success-card2 border-success-outline"
+>>>
+object a:
+  private val getClasses = (orderActionType: OrderActionType) => orderActionType match
+    case Edit
+       | Print
+       | Message  => "bg-cw05 border-cw10"
+    case Complete => "bg-success-card2 border-success-outline"
+<<< carrot 8.2: source break after lambda arrow stays broken
+object a:
+  private val getIcon = (t: OrderActionType) =>
+    t match
+      case Edit => "a"
+>>>
+object a:
+  private val getIcon = (t: OrderActionType) =>
+    t match
+      case Edit => "a"

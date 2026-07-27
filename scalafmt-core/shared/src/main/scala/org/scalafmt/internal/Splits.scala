@@ -911,8 +911,20 @@ object SplitsAfterFunctionArrow extends Splits {
       val hasBlock = nonComment.right.is[T.LeftBrace] &&
         (matchingRight(nonComment) eq endOfFunction)
       val noSplit =
-        if (!hasBlock && (nonComment eq ft)) Split(noSingleLine, 0)(Space)
-          .withSingleLine(endOfFunction)
+        if (!hasBlock && (nonComment eq ft))
+          // CARROT fork: with indent.ctrlBodyIndentOnlyIfBroken under
+          // newlines.source=keep, a multiline lambda body with no source
+          // break after `=>` may start on the arrow line (upstream requires
+          // the whole body on a single line); continuation lines anchor at
+          // the statement level, like other ctrl bodies.
+          if (
+            cfg.indent.ctrlBodyIndentOnlyIfBroken && cfg.newlines.keep &&
+            noBreak
+          ) {
+            val miniEnd = getSlbEndOnLeft(next(ft))
+            Split(Space, 0).withPolicy(SingleLineBlock(miniEnd))
+              .withOptimalToken(miniEnd, killOnFail = true, recurseOnly = true)
+          } else Split(noSingleLine, 0)(Space).withSingleLine(endOfFunction)
         else
           // break after the brace or comment if fits, or now if doesn't
           // if brace, don't add indent, the LeftBrace rule will do that
