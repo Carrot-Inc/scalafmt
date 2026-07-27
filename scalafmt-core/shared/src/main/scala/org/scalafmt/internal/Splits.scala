@@ -980,8 +980,19 @@ object SplitsAfterRightArrow extends Splits {
     }
     val bodyIsEmpty = isEmptyTree(body)
     def baseSplit(implicit l: FileLine) = Split(Space, 0)
-    def nlSplit(ft: FT)(cost: Int)(implicit l: FileLine) = Splits
-      .lowRankNL(ft, cost)
+    def nlSplit(ft: FT)(cost: Int)(implicit l: FileLine) = {
+      val split = Splits.lowRankNL(ft, cost)
+      // CARROT fork: with indent.caseBodyIndentOnlyIfBroken, the case-body
+      // indent rides on broken-body splits instead of on the `case` keyword
+      // (see SplitsAfterCase.getCaseTree).
+      if (!cfg.indent.caseBodyIndentOnlyIfBroken || isCaseBodyABlock(ft, owner))
+        split
+      else split.withIndent(Indent(
+        cfg.indent.main,
+        nextNonCommentSameLine(getLast(owner)),
+        ExpiresOn.After,
+      ))
+    }
     CtrlBodySplits.checkComment(nlSplit(ft)) { nft =>
       def withSlbSplit(implicit l: FileLine) =
         Seq(baseSplit.withSingleLine(getLastNonTrivial(body)), nlSplit(nft)(1))
@@ -3413,9 +3424,17 @@ object SplitsAfterCase extends Splits {
       }
 
     val bodyIndent = if (bodyBlock) 0 else cfg.indent.main
-    val arrowIndent = cfg.indent.caseSite - bodyIndent
+    // CARROT fork: with indent.caseBodyIndentOnlyIfBroken, the body indent is
+    // attached to broken-body splits in SplitsAfterRightArrow.caseTree rather
+    // than here, so inline-started bodies don't indent continuations an extra
+    // level; the pattern indent before the arrow stays at caseSite.
+    val deferBodyIndent = !bodyBlock && cfg.indent.caseBodyIndentOnlyIfBroken
+    val arrowIndent =
+      if (deferBodyIndent) cfg.indent.caseSite
+      else cfg.indent.caseSite - bodyIndent
     val indents =
-      List(Indent(bodyIndent, expire, After), Indent(arrowIndent, arrow, After))
+      if (deferBodyIndent) List(Indent(arrowIndent, arrow, After))
+      else List(Indent(bodyIndent, expire, After), Indent(arrowIndent, arrow, After))
     val mod = ModExt(Space, indents)
     val slbExpireOpt = prevNotTrailingComment(ownerEnd).toOption
     val policy = slbExpireOpt.fold(postArrowPolicy) { slbExpire =>

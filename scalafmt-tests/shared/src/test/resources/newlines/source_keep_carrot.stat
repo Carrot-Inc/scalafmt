@@ -11,6 +11,7 @@ align.openParenDefnSite = true
 continuationIndent.defnSite = 2
 spaces.preserveBefore = ["->"]
 trailingCommas = keep
+indent.caseBodyIndentOnlyIfBroken = true
 rewrite.scala3.convertToNewSyntax = true
 rewrite.scala3.removeOptionalBraces.enabled = true
 <<< carrot 1.1: braceless for-yield after = stays inline under keep
@@ -151,3 +152,43 @@ object a:
   val bag = new BlobPropertyBag:
     `type` = mimeType
     endings = "transparent"
+<<< carrot 5.1: chain under inline case body anchors at case line + main
+object a:
+  def f(x: Option[Int]): Option[Int] = x match
+    case Some(_) => (a, b, c)
+      .mapN(g)
+      .map(h)
+    case None => none
+>>>
+object a:
+  def f(x: Option[Int]): Option[Int] = x match
+    case Some(_) => (a, b, c)
+      .mapN(g)
+      .map(h)
+    case None => none
+<<< carrot 5.2: broken case body still gets one body indent
+object a:
+  def f(x: Option[Int]): Option[Int] = x match
+    case Some(_) =>
+      (a, b, c)
+        .mapN(g)
+    case None => none
+>>>
+object a:
+  def f(x: Option[Int]): Option[Int] = x match
+    case Some(_) =>
+      (a, b, c)
+        .mapN(g)
+    case None => none
+<<< carrot 5.3: multiline pattern keeps caseSite indent with deferred body
+object a:
+  def f(x: Option[Int]): Boolean = x match
+    case Some(1) |
+        Some(2) => true
+    case _ => false
+>>>
+object a:
+  def f(x: Option[Int]): Boolean = x match
+    case Some(1) |
+        Some(2) => true
+    case _ => false
