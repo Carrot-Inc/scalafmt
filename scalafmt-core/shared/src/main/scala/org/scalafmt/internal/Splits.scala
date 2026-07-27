@@ -982,10 +982,10 @@ object SplitsAfterRightArrow extends Splits {
     def baseSplit(implicit l: FileLine) = Split(Space, 0)
     def nlSplit(ft: FT)(cost: Int)(implicit l: FileLine) = {
       val split = Splits.lowRankNL(ft, cost)
-      // CARROT fork: with indent.caseBodyIndentOnlyIfBroken, the case-body
+      // CARROT fork: with indent.ctrlBodyIndentOnlyIfBroken, the case-body
       // indent rides on broken-body splits instead of on the `case` keyword
       // (see SplitsAfterCase.getCaseTree).
-      if (!cfg.indent.caseBodyIndentOnlyIfBroken || isCaseBodyABlock(ft, owner))
+      if (!cfg.indent.ctrlBodyIndentOnlyIfBroken || isCaseBodyABlock(ft, owner))
         split
       else split.withIndent(Indent(
         cfg.indent.main,
@@ -3424,11 +3424,11 @@ object SplitsAfterCase extends Splits {
       }
 
     val bodyIndent = if (bodyBlock) 0 else cfg.indent.main
-    // CARROT fork: with indent.caseBodyIndentOnlyIfBroken, the body indent is
+    // CARROT fork: with indent.ctrlBodyIndentOnlyIfBroken, the body indent is
     // attached to broken-body splits in SplitsAfterRightArrow.caseTree rather
     // than here, so inline-started bodies don't indent continuations an extra
     // level; the pattern indent before the arrow stays at caseSite.
-    val deferBodyIndent = !bodyBlock && cfg.indent.caseBodyIndentOnlyIfBroken
+    val deferBodyIndent = !bodyBlock && cfg.indent.ctrlBodyIndentOnlyIfBroken
     val arrowIndent =
       if (deferBodyIndent) cfg.indent.caseSite
       else cfg.indent.caseSite - bodyIndent
@@ -3748,7 +3748,26 @@ object SplitsAfterOptionalBracesKeyword extends Splits {
   ): Seq[Split] = {
     import fo.tokens
     val ob = OptionalBraces.get(ft)
-    if (ob eq null) Nil else ob.splits
+    if (ob eq null) Nil
+    else {
+      val splits = ob.splits
+      // CARROT fork: with indent.ctrlBodyIndentOnlyIfBroken under
+      // newlines.source=keep, a then/else body with no source break after the
+      // keyword may start on the keyword line even when multiline (upstream
+      // only offers whole-body-single-line or break-after-keyword); the body
+      // indent stays on the broken split, so continuation lines anchor at
+      // the statement level.
+      val inlineOk = cfg.indent.ctrlBodyIndentOnlyIfBroken &&
+        cfg.newlines.keep && ft.noBreak &&
+        ft.left.isAny[T.KwThen, T.KwElse] && splits.exists(!_.isNL)
+      if (!inlineOk) splits
+      else {
+        val miniEnd = fo.getSlbEndOnLeft(tokens.next(ft))
+        val spaceSplit = Split(Space, 0).withPolicy(SingleLineBlock(miniEnd))
+          .withOptimalToken(miniEnd, killOnFail = true, recurseOnly = true)
+        spaceSplit +: splits.filter(_.isNL)
+      }
+    }
   }
 
 }

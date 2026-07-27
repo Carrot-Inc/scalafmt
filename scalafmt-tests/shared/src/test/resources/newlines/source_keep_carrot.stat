@@ -11,7 +11,7 @@ align.openParenDefnSite = true
 continuationIndent.defnSite = 2
 spaces.preserveBefore = ["->"]
 trailingCommas = keep
-indent.caseBodyIndentOnlyIfBroken = true
+indent.ctrlBodyIndentOnlyIfBroken = true
 rewrite.scala3.convertToNewSyntax = true
 rewrite.scala3.removeOptionalBraces.enabled = true
 <<< carrot 1.1: braceless for-yield after = stays inline under keep
@@ -192,3 +192,45 @@ object a:
     case Some(1) |
         Some(2) => true
     case _ => false
+<<< carrot 6.1: multiline chain body stays after then, anchored at statement level
+object a:
+  val timeWindow: V[Option[TimeWindow]] =
+    if draft.deliveryTimeEnabled then (draft.deliveryTimeStart, draft.deliveryTimeEnd)
+      .mapN(TimeWindow.apply)
+      .map(_.some)
+    else none.validNec
+>>>
+object a:
+  val timeWindow: V[Option[TimeWindow]] =
+    if draft.deliveryTimeEnabled then (draft.deliveryTimeStart, draft.deliveryTimeEnd)
+      .mapN(TimeWindow.apply)
+      .map(_.some)
+    else none.validNec
+<<< carrot 6.2: multiline chain body stays after else
+object a:
+  val v: Int =
+    if cond then 0
+    else base
+      .compute(x)
+      .finish
+>>>
+object a:
+  val v: Int =
+    if cond then 0
+    else base
+      .compute(x)
+      .finish
+<<< carrot 6.3: source break after then stays broken with body indent
+object a:
+  val v: Int =
+    if cond then
+      base
+        .compute(x)
+    else 0
+>>>
+object a:
+  val v: Int =
+    if cond then
+      base
+        .compute(x)
+    else 0
