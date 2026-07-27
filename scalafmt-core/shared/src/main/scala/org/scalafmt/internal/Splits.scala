@@ -1469,13 +1469,17 @@ object SplitsBeforeRightParen extends Splits {
       case _: T.RightParen if rightOwner eq leftOwner => NoSplit
       case _ =>
         val nlOnly = cfg.newlines.keepBreak(hasBreak) &&
-          cfg.binPack.siteFor(rightOwner).fold(
-            // CARROT fork: with ctrlBodyIndentOnlyIfBroken, a source break
-            // before any enclosed expression's close paren is kept.
-            rightOwner.is[Pat.Alternative] ||
-              cfg.indent.ctrlBodyIndentOnlyIfBroken,
-          )(_._1 ne BinPack.Site.Never)
-        if (nlOnly) nlMod else Space(cfg.spaces.inParentheses)
+          cfg.binPack.siteFor(rightOwner)
+            .fold(rightOwner.is[Pat.Alternative])(_._1 ne BinPack.Site.Never)
+        // CARROT fork: with ctrlBodyIndentOnlyIfBroken, a source break
+        // before any close paren is kept (enclosed expressions and arg
+        // clauses alike), regardless of dangling/config-style rules; blank
+        // lines before the close are still squashed.
+        def carrotKeepClose = cfg.indent.ctrlBodyIndentOnlyIfBroken &&
+          cfg.newlines.keepBreak(hasBreak)
+        if (nlOnly) nlMod
+        else if (carrotKeepClose) Newline
+        else Space(cfg.spaces.inParentheses)
     }
     Seq(Split(mod, 0))
   }
