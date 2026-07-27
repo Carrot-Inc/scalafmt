@@ -1400,7 +1400,23 @@ object SplitsBeforeLeftParenOrBracket extends Splits {
             )
           }
         else null
-      beforeOpenParenSplits ?? Seq(baseNoSplit)
+      // CARROT fork: with indent.preserveParamClauseIndent under
+      // newlines.source=keep, a source break before a subsequent defn-site
+      // param clause is kept (upstream collapses it when
+      // beforeOpenParenDefnSite is unset); FormatWriter then preserves the
+      // line's source column offset relative to the statement.
+      def carrotKeepClauseSplits =
+        if (
+          (beforeOpenParenSplits eq null) && defn && ft.hasBreak &&
+          cfg.newlines.keep && cfg.indent.preserveParamClauseIndent &&
+          right.is[T.LeftParen] && left.isAny[T.RightParen, T.RightBracket]
+        ) Seq(Split(Newline, 0).withIndent(Indent(
+          cfg.indent.getDefnSite(rightOwner),
+          matchingRight(ft),
+          ExpiresOn.After,
+        )))
+        else null
+      beforeOpenParenSplits ?? carrotKeepClauseSplits ?? Seq(baseNoSplit)
     } else Nil
   }
 }

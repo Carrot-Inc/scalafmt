@@ -469,18 +469,26 @@ class FormatWriter(formatOps: FormatOps) {
       @inline
       def prevState = curr.state.prev
 
-      // CARROT fork: indent.preservePatAltIndent — under source=keep, a
-      // leading `|` in a multiline case pattern keeps its source column
-      // offset relative to the `case` keyword (both configs put the pattern
-      // continuation region at exactly caseSite above the case line, so
-      // computed - caseSite is the case keyword's output column).
-      private def carrotPatAltIndent(computed: Int): Int =
-        if (
-          !style.indent.preservePatAltIndent || !style.newlines.keep ||
-          !tok.hasBreak || tok.meta.right.text != "|" ||
-          !tok.meta.rightOwner.is[Pat.Alternative]
-        ) computed
-        else {
+      // CARROT fork: source-relative line-indent preservation under
+      // newlines.source=keep. The output indent of the anchor statement is
+      // recovered as (computed - region), where region is the exact indent
+      // scalafmt would otherwise apply above the anchor's line; the line then
+      // keeps its source column offset relative to the anchor.
+      private def carrotPreservedLineIndent(computed: Int): Int = {
+        def preserved(anchor: Tree, region: Int): Int =
+          if (anchor eq null) computed
+          else {
+            val offset = tok.right.pos.startColumn - anchor.pos.startColumn
+            if (offset <= 0) computed
+            else math.max(0, computed - region + offset)
+          }
+        if (!style.newlines.keep || !tok.hasBreak) computed
+        // indent.preservePatAltIndent: leading `|` in a multiline case
+        // pattern, anchored at the `case` keyword (region = caseSite).
+        else if (
+          style.indent.preservePatAltIndent && tok.meta.right.text == "|" &&
+          tok.meta.rightOwner.is[Pat.Alternative]
+        ) {
           @tailrec
           def toCase(t: Tree): Tree = t match {
             case c: Case => c
@@ -489,14 +497,28 @@ class FormatWriter(formatOps: FormatOps) {
                 case None => null
               }
           }
-          val c = toCase(tok.meta.rightOwner)
-          if (c eq null) computed
-          else {
-            val offset = tok.right.pos.startColumn - c.pos.startColumn
-            if (offset <= 0) computed
-            else math.max(0, computed - style.indent.caseSite + offset)
-          }
+          preserved(toCase(tok.meta.rightOwner), style.indent.caseSite)
         }
+        // indent.preserveParamClauseIndent: a defn-site parameter clause `(`
+        // broken before (newlines.beforeOpenParenDefnSite=keep), anchored at
+        // the defn statement (region = the defn-site continuation indent).
+        else if (
+          style.indent.preserveParamClauseIndent &&
+          tok.right.is[T.LeftParen] && tok.meta.rightOwner.is[Member.ParamClause]
+        ) {
+          @tailrec
+          def toStmt(t: Tree): Tree = t match {
+            case _: Member.ParamClause | _: Member.ParamClauseGroup |
+                _: Ctor.Primary => t.parent match {
+                case Some(p) => toStmt(p)
+                case None => null
+              }
+            case _ => t
+          }
+          val stmt = toStmt(tok.meta.rightOwner)
+          preserved(stmt, style.indent.getDefnSite(tok.meta.rightOwner))
+        } else computed
+      }
 
       private def appendWhitespace(alignOffset: Int, delayedAlign: Int)(implicit
           sb: StringBuilder,
@@ -509,8 +531,9 @@ class FormatWriter(formatOps: FormatOps) {
               if (i == locations.length - 1) 0
               else extraBlankTokens.getOrElse(i, if (nl.isDouble) 1 else 0)
             sb.append(getNewlines(extraBlanks))
-            if (!nl.noIndent) sb
-              .append(getIndentation(carrotPatAltIndent(state.indentation)))
+            if (!nl.noIndent) sb.append(
+              getIndentation(carrotPreservedLineIndent(state.indentation)),
+            )
             0
 
           case p: Provided =>

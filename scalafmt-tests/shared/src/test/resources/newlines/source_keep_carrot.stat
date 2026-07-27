@@ -13,6 +13,7 @@ spaces.preserveBefore = ["->", "=>"]
 trailingCommas = keep
 indent.ctrlBodyIndentOnlyIfBroken = true
 indent.preservePatAltIndent = true
+indent.preserveParamClauseIndent = true
 rewrite.scala3.convertToNewSyntax = true
 rewrite.scala3.removeOptionalBraces.enabled = true
 <<< carrot 1.1: braceless for-yield after = stays inline under keep
@@ -299,3 +300,29 @@ object a:
   private val getIcon = (t: OrderActionType) =>
     t match
       case Edit => "a"
+<<< carrot 9.1: broken second param clause keeps paren-aligned source offset
+object a:
+  private def isTabActive[T: Eq](current: T, compare: Option[(T, T) => Boolean])
+                                (tab: TabItem[T]): Boolean =
+    current === tab.value
+>>>
+object a:
+  private def isTabActive[T: Eq](current: T, compare: Option[(T, T) => Boolean])
+                                (tab: TabItem[T]): Boolean =
+    current === tab.value
+<<< carrot 9.2: single-line multi-clause def stays single-line
+object a:
+  def singleLine(a: Int)(b: Int): Int = a + b
+>>>
+object a:
+  def singleLine(a: Int)(b: Int): Int = a + b
+<<< carrot 9.3: continuation-indented second clause keeps its offset
+object a:
+  def render(props: Props)
+    (using ctx: Ctx): Unit =
+    body(props)
+>>>
+object a:
+  def render(props: Props)
+    (using ctx: Ctx): Unit =
+    body(props)
