@@ -134,6 +134,10 @@ case class ScalafmtConfig(
       k -> v.getMatcher
     }
 
+  // CARROT fork: codes of align tokens gated on config-style clause layout.
+  private[scalafmt] lazy val alignOnlyIfClauseBroken: Set[String] = align.tokens
+    .filter(_.onlyIfClauseBroken).map(_.code).toSet
+
   def withDialect(nd: NamedDialect): ScalafmtConfig =
     copy(runner = runner.withDialect(nd))
 

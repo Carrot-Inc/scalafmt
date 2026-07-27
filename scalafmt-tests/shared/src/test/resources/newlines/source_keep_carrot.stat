@@ -10,6 +10,7 @@ danglingParentheses.defnSite = false
 align.openParenDefnSite = true
 continuationIndent.defnSite = 2
 spaces.preserveBefore = ["->", "=>"]
+align.tokens."+" = [{ code = ":", owners = [{ regex = "Term\\.Param", parents = ["Ctor\\.Primary"] }], onlyIfClauseBroken = true }]
 trailingCommas = keep
 indent.ctrlBodyIndentOnlyIfBroken = true
 indent.preservePatAltIndent = true
@@ -58,8 +59,8 @@ object a:
 >>>
 object a:
   final case class ThreeParamsFormatVerically(
-    short: Int,
-    bitLonger: Boolean,
+    short:           Int,
+    bitLonger:       Boolean,
     byFarTheLongest: Option[Long]
   )
 <<< carrot 2.2: source-inline close keeps params aligned under open paren
@@ -326,3 +327,29 @@ object a:
   def render(props: Props)
     (using ctx: Ctx): Unit =
     body(props)
+<<< carrot 10.1: under-paren ctor params get no type-column padding
+object a:
+  final class EmailDeliverabilityLive(db: MainDatabase,
+                                      settings: Settings,
+                                      mailerSend: MailerSend) extends EmailDeliverability:
+    def x = 1
+>>>
+object a:
+  final class EmailDeliverabilityLive(db: MainDatabase,
+                                      settings: Settings,
+                                      mailerSend: MailerSend) extends EmailDeliverability:
+    def x = 1
+<<< carrot 10.2: config-style ctor params keep the aligned type column
+object a:
+  final case class ThreeParams(
+    short: Int,
+    bitLonger: Boolean,
+    byFarTheLongest: Option[Long]
+  )
+>>>
+object a:
+  final case class ThreeParams(
+    short:           Int,
+    bitLonger:       Boolean,
+    byFarTheLongest: Option[Long]
+  )

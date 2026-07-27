@@ -11,7 +11,14 @@ import metaconfig._
   *   array of owner specs.
   */
 
-case class AlignToken(code: String, owners: Seq[TreePattern] = Seq.empty) {
+case class AlignToken(
+    code: String,
+    owners: Seq[TreePattern] = Seq.empty,
+    // CARROT fork: when true, this token participates in alignment only if
+    // its enclosing clause has a source break after the open delimiter (i.e.
+    // config-style layout); tokens in inline-start clauses are left alone.
+    onlyIfClauseBroken: Boolean = false,
+) {
   def getMatcher: Seq[TreePattern.Matcher] = owners.distinct.map(_.getMatcher)
 }
 

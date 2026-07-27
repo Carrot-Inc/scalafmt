@@ -1355,7 +1355,13 @@ class FormatWriter(formatOps: FormatOps) {
             else {
               val isSlc = ft.right.is[T.Comment] && locations(idx)
                 .hasBreakAfter && !ft.rightHasNewline
-              if (shouldAlign(ft, isSlc)) {
+              if (
+                shouldAlign(
+                  ft,
+                  isSlc,
+                  clause => locations(getHead(clause).idx).hasBreakAfter,
+                )
+              ) {
                 val (container, depth) = getAlignContainer(isSlc)
                 def appendCandidate() = columnCandidates += new AlignStop(
                   getAlignColumn(floc) + columnShift,
@@ -2062,8 +2068,8 @@ object FormatWriter {
     if (useLeft) floc.state.prev.column else floc.state.column
   }
 
-  private def shouldAlign(ft: FT, slc: Boolean)(implicit
-      floc: FormatLocation,
+  private def shouldAlign(ft: FT, slc: Boolean, clauseBroken: Tree => Boolean)(
+      implicit floc: FormatLocation,
   ): Boolean = {
     val code = if (slc) "//" else ft.meta.right.text
     floc.style.alignMap.get(code).exists(matchers =>
@@ -2077,7 +2083,13 @@ object FormatWriter {
               x.parent match { case Some(p: Term.ApplyInfix) => p; case _ => x }
             case x => x
           }
-        matchers.exists(_.matches(owner))
+        matchers.exists(_.matches(owner)) &&
+        // CARROT fork: align.tokens entries with onlyIfClauseBroken only
+        // participate when the owner's enclosing clause is broken after its
+        // open delimiter in the OUTPUT (config-style layout) — output-based
+        // so the gate is stable when the formatter itself creates the break.
+        (!floc.style.alignOnlyIfClauseBroken.contains(code) ||
+          owner.parent.exists(clauseBroken))
       },
     )
   }
