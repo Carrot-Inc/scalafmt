@@ -526,3 +526,19 @@ object a:
       if retry then tryWithBasePath(primary)
       else tryWithBasePath(secondary)
   yield result
+<<< carrot 15.1: infix rhs in parens glued to the operator stays glued
+object a:
+  def onchg = div(
+    onChange ===> (str =>
+      props.setDraftL(Iso.id)(props.draft.copy(code = str))
+    ),
+    other
+  )
+>>>
+object a:
+  def onchg = div(
+    onChange ===> (str =>
+      props.setDraftL(Iso.id)(props.draft.copy(code = str))
+    ),
+    other
+  )

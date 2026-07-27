@@ -516,13 +516,23 @@ class InfixSplits(
       val endOfNextOp = if (afterInfix.breakOnNested) getNextOp else null
 
       val slbPolicy = InfixSplits.getSingleLineInfixPolicy(closeFt)
-      val nlSplit = Split(nlMod, 0, nlPolicy).withIndent(nlIndent).andPolicy(
-        if (bracesLike) slbPolicy | PolicyOps.SingleLineBlock(closeFt) else null,
-      ).withOptimalToken(closeFt, killOnFail = false, ignore = !bracesLike)
+      // CARROT fork: under keep (with ctrlBodyIndentOnlyIfBroken), an infix
+      // rhs in parens glued to the operator in the source stays glued even
+      // when it spans lines (upstream only offers whole-rhs-single-line or a
+      // break after the operator).
+      val carrotGlue = style.indent.ctrlBodyIndentOnlyIfBroken &&
+        style.newlines.keep && ft.noBreak && !bracesLike && !noSingleLine
+      val nlSplit = Split(nlMod, if (carrotGlue) 1 else 0, nlPolicy)
+        .withIndent(nlIndent).andPolicy(
+          if (bracesLike) slbPolicy | PolicyOps.SingleLineBlock(closeFt)
+          else null,
+        ).withOptimalToken(closeFt, killOnFail = false, ignore = !bracesLike)
       val singleLineSplit = Split(noSingleLine, 0)(spaceMod)
         .withSingleLine(endOfNextOp ?? closeFt).andPolicy(slbPolicy)
-      val noSplit = Split(!bracesLike, 1)(spaceMod)
-        .withPolicy(PolicyOps.decideNewlinesOnlyAfterClose(nextFt))
+      val noSplit =
+        if (carrotGlue) Split(spaceMod, 0)
+        else Split(!bracesLike, 1)(spaceMod)
+          .withPolicy(PolicyOps.decideNewlinesOnlyAfterClose(nextFt))
       Seq(singleLineSplit, nlSplit, noSplit)
     }
 
