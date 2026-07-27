@@ -48,6 +48,10 @@ case class Indents(
     // of stacking the body indent. Under newlines.source=keep this also lets
     // a multiline then/else body start on the keyword line.
     ctrlBodyIndentOnlyIfBroken: Boolean = false,
+    // CARROT fork: under newlines.source=keep, a leading `|` continuation
+    // line in a multiline case pattern keeps its source column offset
+    // relative to the `case` keyword instead of the fixed caseSite indent.
+    preservePatAltIndent: Boolean = false,
     matchSite: Option[Int] = None,
     private[config] val ctorSite: Option[Int] = None,
     extraBeforeOpenParenDefnSite: Int = 0,

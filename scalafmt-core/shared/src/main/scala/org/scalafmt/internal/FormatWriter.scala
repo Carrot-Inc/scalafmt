@@ -469,6 +469,35 @@ class FormatWriter(formatOps: FormatOps) {
       @inline
       def prevState = curr.state.prev
 
+      // CARROT fork: indent.preservePatAltIndent — under source=keep, a
+      // leading `|` in a multiline case pattern keeps its source column
+      // offset relative to the `case` keyword (both configs put the pattern
+      // continuation region at exactly caseSite above the case line, so
+      // computed - caseSite is the case keyword's output column).
+      private def carrotPatAltIndent(computed: Int): Int =
+        if (
+          !style.indent.preservePatAltIndent || !style.newlines.keep ||
+          !tok.hasBreak || tok.meta.right.text != "|" ||
+          !tok.meta.rightOwner.is[Pat.Alternative]
+        ) computed
+        else {
+          @tailrec
+          def toCase(t: Tree): Tree = t match {
+            case c: Case => c
+            case _ => t.parent match {
+                case Some(p) => toCase(p)
+                case None => null
+              }
+          }
+          val c = toCase(tok.meta.rightOwner)
+          if (c eq null) computed
+          else {
+            val offset = tok.right.pos.startColumn - c.pos.startColumn
+            if (offset <= 0) computed
+            else math.max(0, computed - style.indent.caseSite + offset)
+          }
+        }
+
       private def appendWhitespace(alignOffset: Int, delayedAlign: Int)(implicit
           sb: StringBuilder,
       ): Int = {
@@ -480,7 +509,8 @@ class FormatWriter(formatOps: FormatOps) {
               if (i == locations.length - 1) 0
               else extraBlankTokens.getOrElse(i, if (nl.isDouble) 1 else 0)
             sb.append(getNewlines(extraBlanks))
-            if (!nl.noIndent) sb.append(getIndentation(state.indentation))
+            if (!nl.noIndent) sb
+              .append(getIndentation(carrotPatAltIndent(state.indentation)))
             0
 
           case p: Provided =>

@@ -12,6 +12,7 @@ continuationIndent.defnSite = 2
 spaces.preserveBefore = ["->"]
 trailingCommas = keep
 indent.ctrlBodyIndentOnlyIfBroken = true
+indent.preservePatAltIndent = true
 rewrite.scala3.convertToNewSyntax = true
 rewrite.scala3.removeOptionalBraces.enabled = true
 <<< carrot 1.1: braceless for-yield after = stays inline under keep
@@ -234,3 +235,29 @@ object a:
       base
         .compute(x)
     else 0
+<<< carrot 7.1: leading-pipe pattern keeps name-aligned source offset
+object a:
+  def f(e: Err): Boolean = e match
+    case EmailSubjectNotSet
+       | EmailTitleNotSet => true
+    case EmailMessageNotSet => false
+>>>
+object a:
+  def f(e: Err): Boolean = e match
+    case EmailSubjectNotSet
+       | EmailTitleNotSet => true
+    case EmailMessageNotSet => false
+<<< carrot 7.2: leading-pipe pattern keeps under-first-pattern source offset
+object a:
+  def f(s: BlastState): Int = s match
+    case BlastState.Draft
+         | BlastState.Pending
+         | BlastState.Sending => 1
+    case BlastState.Sent => 2
+>>>
+object a:
+  def f(s: BlastState): Int = s match
+    case BlastState.Draft
+         | BlastState.Pending
+         | BlastState.Sending => 1
+    case BlastState.Sent => 2
