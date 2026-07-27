@@ -11,6 +11,7 @@ align.openParenDefnSite = true
 continuationIndent.defnSite = 2
 spaces.preserveBefore = ["->"]
 spaces.afterAccessModifier = true
+spaces.beforeContextBoundColon = IfMultipleBounds
 align.enumeratorsAcrossBlankLines = true
 align.multiline = true
 align.multilineMembers = true
@@ -542,3 +543,23 @@ object a:
     ),
     other
   )
+<<< carrot 16.1: glued open with already-broken params and dangled close stays
+object a:
+  def entityListScreen[
+    T,
+    CAT <: EntityListCategory : {EnumMirror, Eq}
+  ](printableName: String,
+    handleNew: SHARED => LocationTask[Unit],
+    permission: UserPermission
+  ): Unit =
+    body
+>>>
+object a:
+  def entityListScreen[
+    T,
+    CAT <: EntityListCategory : {EnumMirror, Eq}
+  ](printableName: String,
+    handleNew: SHARED => LocationTask[Unit],
+    permission: UserPermission
+  ): Unit =
+    body

@@ -1903,8 +1903,22 @@ object SplitsAfterLeftParenOrBracket {
     val alignTuple = align && tupleSite && !onlyConfigStyle
 
     val noSplitForNL = !onlyConfigStyle && right.is[T.LeftBrace]
+    // CARROT fork: a config-style clause whose source keeps the open glued
+    // and already breaks between its args keeps the glued open — the
+    // one-arg-per-line and dangling-close policies still apply.
+    val carrotGluedConfigStyle = onlyConfigStyle && cfg.newlines.keep &&
+      cfg.indent.ctrlBodyIndentOnlyIfBroken && noBreak &&
+      beforeClose.left.pos.startLine > right.pos.startLine && {
+        // only when the source keeps every line-starting arg aligned under
+        // the open paren (the under-paren style with a dangled close);
+        // otherwise normalize to config style
+        val col = right.pos.startColumn
+        args.forall(arg =>
+          !tokenJustBefore(arg).hasBreak || arg.pos.startColumn == col,
+        )
+      }
     val skipNoSplit = rightIsCommentWithBreak ||
-      !noSplitForNL && !alignTuple &&
+      !noSplitForNL && !alignTuple && !carrotGluedConfigStyle &&
       (cfg.newlines.keepBreak(hasBreak) || {
         if (!handleImplicit) onlyConfigStyle
         else cfg.newlines.forceBeforeImplicitParamListModifier
