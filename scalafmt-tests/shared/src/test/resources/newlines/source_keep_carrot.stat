@@ -9,7 +9,7 @@ newlines.configStyle.defnSite {
 danglingParentheses.defnSite = false
 align.openParenDefnSite = true
 continuationIndent.defnSite = 2
-spaces.preserveBefore = ["->"]
+spaces.preserveBefore = ["->", "=>"]
 trailingCommas = keep
 indent.ctrlBodyIndentOnlyIfBroken = true
 indent.preservePatAltIndent = true
@@ -261,3 +261,17 @@ object a:
          | BlastState.Pending
          | BlastState.Sending => 1
     case BlastState.Sent => 2
+<<< carrot 7.3: multiline-pattern case arrow keeps hand padding; single-line arrows stay aligner-managed
+object a:
+  def f(x: T): Int = x match
+    case (_, Some(e), _)      => 1
+    case (Some(_), _, _)
+       | (_, _, Some(_))      => 2
+    case (None, None, None)   => 3
+>>>
+object a:
+  def f(x: T): Int = x match
+    case (_, Some(e), _)      => 1
+    case (Some(_), _, _)
+       | (_, _, Some(_))      => 2
+    case (None, None, None)   => 3

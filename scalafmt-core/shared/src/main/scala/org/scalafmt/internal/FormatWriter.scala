@@ -523,11 +523,14 @@ class FormatWriter(formatOps: FormatOps) {
             val alignShift = align
             // CARROT fork: spaces.preserveBefore — keep the source's run of
             // 2+ spaces (hand alignment) before configured tokens instead of
-            // normalizing to a single space.
+            // normalizing to a single space. Only when the aligner is not
+            // managing this token: active alignment groups (e.g. case-arrow
+            // columns) always win; preservation covers tokens the aligner
+            // excludes, such as arrows of multiline-pattern cases.
             val width = mod.length + alignShift
             val preserved =
               if (
-                mod.length >= 1 && tok.noBreak &&
+                mod.length >= 1 && tok.noBreak && tokenAligns.get(i).isEmpty &&
                   style.spaces.isPreserveBefore(tok.meta.right.text)
               ) tok.right.start - tok.left.end
               else 0
