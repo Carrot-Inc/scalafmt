@@ -18,6 +18,10 @@ case class AlignToken(
     // its enclosing clause has a source break after the open delimiter (i.e.
     // config-style layout); tokens in inline-start clauses are left alone.
     onlyIfClauseBroken: Boolean = false,
+    // CARROT fork: when true, the owner must be a modifier-less parameter of
+    // a `case` class primary constructor (plain fields); val/var params and
+    // non-case classes are left alone.
+    onlyIfCaseClassParam: Boolean = false,
 ) {
   def getMatcher: Seq[TreePattern.Matcher] = owners.distinct.map(_.getMatcher)
 }

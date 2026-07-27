@@ -61,6 +61,11 @@ case class Indents(
     // of a definition is kept, with the `=` line keeping its source column
     // offset relative to the statement.
     preserveAssignIndent: Boolean = false,
+    // CARROT fork: under newlines.source=keep, an infix chain that is the
+    // RHS of a definition/assignment whose first operator leads a source
+    // line keeps that operator's source column offset relative to the
+    // statement (e.g. operators aligned under a broken `=`).
+    preserveInfixIndent: Boolean = false,
     matchSite: Option[Int] = None,
     private[config] val ctorSite: Option[Int] = None,
     extraBeforeOpenParenDefnSite: Int = 0,

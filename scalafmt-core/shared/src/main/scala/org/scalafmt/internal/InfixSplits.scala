@@ -279,10 +279,28 @@ class InfixSplits(
     else app.is[Pat] || style.indent.infix.exists(allowNoIndent)
   }
 
+  // CARROT fork: indent.preserveInfixIndent — under newlines.source=keep, an
+  // infix chain that is the RHS of a definition or assignment, whose first
+  // operator leads a source line, keeps that operator's source column offset
+  // relative to the statement as the chain indent (hand style aligns the
+  // operator column, e.g. under a broken `=`).
+  private def carrotInfixIndentLength: Int = {
+    val default = style.indent.getAfterInfixSite
+    if (!style.indent.preserveInfixIndent || !style.newlines.keep) default
+    else fullInfix.parent match {
+      case Some(p @ (_: Defn | _: Term.Assign)) =>
+        val op = leftInfix.op
+        val offset = op.pos.startColumn - p.pos.startColumn
+        if (offset > 0 && ftoks.tokenJustBefore(op).hasBreak) offset
+        else default
+      case _ => default
+    }
+  }
+
   private val (fullIndentLength, fullIndentExpire) = assignBodyExpire match {
     case Some(x) if beforeLhs => (style.indent.main, x)
     case None if isFirstOp && isAssignmentOp => (style.indent.main, fullExpire)
-    case _ => (style.indent.getAfterInfixSite, fullExpire)
+    case _ => (carrotInfixIndentLength, fullExpire)
   }
 
   private val fullIndent: Indent =

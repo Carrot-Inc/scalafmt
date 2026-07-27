@@ -9,13 +9,14 @@ newlines.configStyle.defnSite {
 danglingParentheses.defnSite = false
 align.openParenDefnSite = true
 continuationIndent.defnSite = 2
-spaces.preserveBefore = ["->", "=>"]
-align.tokens."+" = [{ code = ":", owners = [{ regex = "Term\\.Param", parents = ["Ctor\\.Primary"] }], onlyIfClauseBroken = true }]
+spaces.preserveBefore = ["->", "=>", "extends"]
+align.tokens."+" = [{ code = ":", owners = [{ regex = "Term\\.Param", parents = ["Ctor\\.Primary"] }], onlyIfClauseBroken = true, onlyIfCaseClassParam = true }]
 trailingCommas = keep
 indent.ctrlBodyIndentOnlyIfBroken = true
 indent.preservePatAltIndent = true
 indent.preserveParamClauseIndent = true
 indent.preserveAssignIndent = true
+indent.preserveInfixIndent = true
 rewrite.scala3.convertToNewSyntax = true
 rewrite.scala3.removeOptionalBraces.enabled = true
 <<< carrot 1.1: braceless for-yield after = stays inline under keep
@@ -379,8 +380,8 @@ object a:
   def render =
     val usaStateOptions: List[VdomTag]
        = option(key := "None", disabled := stateValue.isDefined, value := "None", "State")
-      +: UsaState.values.toList.map(ab => option(value := ab.entryName, key := ab.entryName))
-      :+ option(key := "Other", disabled := false, value := "Other", "Other")
+       +: UsaState.values.toList.map(ab => option(value := ab.entryName, key := ab.entryName))
+       :+ option(key := "Other", disabled := false, value := "Other", "Other")
     usaStateOptions
 <<< carrot 11.2: inline `=` stays inline
 object a:
@@ -388,19 +389,19 @@ object a:
 >>>
 object a:
   val simple: Int = 1 + 2
-<<< carrot 11.3: bare-headed infix body stays on the `=` line
+<<< carrot 11.3: bare-headed infix stays on `=` line, ops keep their column
 object a:
   def f =
     val canSend
        = canSave
-      && other
+       && other
     canSend
 >>>
 object a:
   def f =
     val canSend
        = canSave
-      && other
+       && other
     canSend
 <<< carrot 11.4: named-arg break before `=` is kept
 object a:
@@ -418,3 +419,39 @@ object a:
        = DropdownItem("No Fee", none)
       +: fees.map(mkItem)
   ))
+<<< carrot 10.3: val-params of a non-case class get no type column
+object a:
+  class Options(
+    val maxSizeMB: js.UndefOr[Double] = js.undefined,
+    val maxWidthOrHeight: js.UndefOr[Double] = js.undefined,
+    val fileType: js.UndefOr[String] = js.undefined
+  ) extends js.Object
+>>>
+object a:
+  class Options(
+    val maxSizeMB: js.UndefOr[Double] = js.undefined,
+    val maxWidthOrHeight: js.UndefOr[Double] = js.undefined,
+    val fileType: js.UndefOr[String] = js.undefined
+  ) extends js.Object
+<<< carrot 12.1: hand-aligned enum `extends` columns are preserved
+object a:
+  enum StorageKey[T](val key: String):
+    case AdminToken extends StorageKey[String]("admin_token")
+    case DeviceId   extends StorageKey[UUID]("device_id")
+    case WideMenu   extends StorageKey[Boolean]("wide_menu")
+>>>
+object a:
+  enum StorageKey[T](val key: String):
+    case AdminToken extends StorageKey[String]("admin_token")
+    case DeviceId   extends StorageKey[UUID]("device_id")
+    case WideMenu   extends StorageKey[Boolean]("wide_menu")
+<<< carrot 12.2: unaligned enum `extends` stays unaligned
+object a:
+  enum Color(val hex: String):
+    case Red extends Color("ff0000")
+    case Green extends Color("00ff00")
+>>>
+object a:
+  enum Color(val hex: String):
+    case Red extends Color("ff0000")
+    case Green extends Color("00ff00")

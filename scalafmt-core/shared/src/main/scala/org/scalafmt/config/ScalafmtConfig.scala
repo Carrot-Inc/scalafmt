@@ -138,6 +138,11 @@ case class ScalafmtConfig(
   private[scalafmt] lazy val alignOnlyIfClauseBroken: Set[String] = align.tokens
     .filter(_.onlyIfClauseBroken).map(_.code).toSet
 
+  // CARROT fork: codes of align tokens restricted to mod-less case-class
+  // primary-ctor params.
+  private[scalafmt] lazy val alignOnlyIfCaseClassParam: Set[String] = align
+    .tokens.filter(_.onlyIfCaseClassParam).map(_.code).toSet
+
   def withDialect(nd: NamedDialect): ScalafmtConfig =
     copy(runner = runner.withDialect(nd))
 
