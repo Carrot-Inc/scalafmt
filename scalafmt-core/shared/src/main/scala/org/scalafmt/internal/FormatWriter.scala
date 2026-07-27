@@ -491,7 +491,17 @@ class FormatWriter(formatOps: FormatOps) {
 
           case _ =>
             val alignShift = align
-            sb.append(getIndentation(mod.length + alignShift))
+            // CARROT fork: spaces.preserveBefore — keep the source's run of
+            // 2+ spaces (hand alignment) before configured tokens instead of
+            // normalizing to a single space.
+            val width = mod.length + alignShift
+            val preserved =
+              if (
+                mod.length >= 1 && tok.noBreak &&
+                  style.spaces.isPreserveBefore(tok.meta.right.text)
+              ) tok.right.start - tok.left.end
+              else 0
+            sb.append(getIndentation(math.max(width, preserved)))
             alignShift
         }
       }

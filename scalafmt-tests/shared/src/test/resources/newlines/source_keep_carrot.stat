@@ -9,6 +9,8 @@ newlines.configStyle.defnSite {
 danglingParentheses.defnSite = false
 align.openParenDefnSite = true
 continuationIndent.defnSite = 2
+spaces.preserveBefore = ["->"]
+trailingCommas = keep
 <<< carrot 1.1: braceless for-yield after = stays inline under keep
 object a:
   def forOnTheSameLine(param: String): Task[Int] = for
@@ -96,3 +98,33 @@ object a:
   final case class ThreeParamStayInline(value1: Int, value2: String, value3: Option[Double])
   def postNote(locationId: CarrotLocationId, customerId: CarrotCustomerId, text: String, uuid: UUID): ApiTask[Note] =
     post(locationId, customerId, text, uuid)
+<<< carrot 3.1: hand-aligned -> table stays aligned (spaces.preserveBefore)
+val m = Map(
+  "a"        -> 1,
+  "long-key" -> 2,
+)
+>>>
+val m = Map(
+  "a"        -> 1,
+  "long-key" -> 2,
+)
+<<< carrot 3.2: unaligned -> table stays unaligned (spaces.preserveBefore)
+val m = Map(
+  "a" -> 1,
+  "long-key" -> 2,
+)
+>>>
+val m = Map(
+  "a" -> 1,
+  "long-key" -> 2,
+)
+<<< carrot 3.3: imperfect -> padding is preserved verbatim, not recomputed
+val m = Map(
+  "a"    -> 1,
+  "long-key"   -> 2,
+)
+>>>
+val m = Map(
+  "a"    -> 1,
+  "long-key"   -> 2,
+)

@@ -26,7 +26,7 @@ inThisBuild {
     // suffix: IntelliJ's bundled scalafmt-dynamic 3.7.17 only parses
     // `+`-suffixed custom versions (its regex predates the `[-+]` form) and
     // silently falls back to scalafmt 1.5.1 when the version fails to parse.
-    version := "3.11.3+CARROT.1",
+    version := "3.11.3+CARROT.2",
     organization := smorgN,
     homepage := Some(url("https://github.com/scalameta/scalafmt")),
     licenses :=

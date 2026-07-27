@@ -1,0 +1,67 @@
+# Requires the Carrot scalafmt fork (github.com/scalameta/scalafmt patched on
+# branch carrot/3.11.3): adds newlines.configStyle.*.preferBreakBeforeClose and
+# keeps a braceless for/for-yield inline after `=` under newlines.source=keep.
+version = 3.11.3-CARROT.1
+runner.dialect = scala3
+preset = IntelliJ
+align.preset = some
+continuationIndent.defnSite = 2
+maxColumn = 120
+trailingCommas = keep
+
+newlines {
+  source = keep
+  # don't reflow ${...} splices inside string interpolations (SQL/HTML templates)
+  inInterpolation = avoid
+  configStyle.defnSite {
+    # Defn-site layout follows the source: a break before the closing paren
+    # marks the clause as config style (break after `(`, one param per line,
+    # dangling `)`); otherwise params align under the open paren and `)` stays
+    # inline. One-line clauses that fit stay one-line.
+    prefer = true
+    forceIfOptimized = false
+    preferBreakBeforeClose = true # fork-only option
+  }
+}
+
+# Never force-dangle `)` at defn sites; dangling comes only from config style
+# (i.e. from the source's own layout).
+danglingParentheses.defnSite = false
+
+rewrite.scala3 {
+  convertToNewSyntax = true
+  optionalBraces {
+    enabled = true
+  }
+}
+
+rewrite.rules = [RedundantBraces, RedundantParens]
+rewrite.redundantBraces.stringInterpolation = true
+
+align {
+  multiline = true
+  allowOverflow = true
+  openParenDefnSite = true
+
+  tokenCategory."Equals" = "Assign"
+  tokenCategory."LeftArrow" = "Assign"
+
+  tokens."+" = [
+    {
+      code = "<-",
+    }
+    {
+      code = "="
+      owners = [{
+        regex = "Enumerator\\.Val"
+      }]
+    }
+    {
+      code = ":"
+      owners = [{
+        regex = "Term\\.Param"
+        parents = [ "Ctor\\.Primary" ]
+      }]
+    }
+  ]
+}

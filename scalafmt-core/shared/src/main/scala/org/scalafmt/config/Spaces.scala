@@ -68,9 +68,18 @@ case class Spaces(
     afterSymbolicDefs: Boolean = false,
     afterColonInMatchPattern: Spaces.AfterColonInMatchPattern =
       Spaces.AfterColonInMatchPattern.Always,
+    // CARROT fork: for tokens listed here (by text, e.g. "->"), a same-line
+    // run of 2+ spaces before the token in the source is preserved verbatim
+    // instead of being normalized to a single space. Keeps hand-aligned
+    // tables aligned and leaves unaligned code untouched.
+    preserveBefore: Seq[String] = Nil,
 ) {
   def isSpaceAfterKeyword(tokenAfter: T): Boolean = afterKeywordBeforeParen ||
     !tokenAfter.is[T.LeftParen]
+
+  @inline
+  def isPreserveBefore(tokenText: String): Boolean = preserveBefore
+    .contains(tokenText)
 }
 
 object Spaces {
