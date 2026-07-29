@@ -530,8 +530,11 @@ object Newlines {
     case object allow extends InInterpolation
     case object avoid extends InInterpolation
     case object oneline extends InInterpolation
+    // CARROT: source breaks inside splices are kept, none are ever inserted,
+    // even when the line overflows maxColumn
+    case object keep extends InInterpolation
     implicit val codec: ConfCodecEx[InInterpolation] = ConfCodecEx
-      .oneOf[InInterpolation](allow, avoid, oneline)
+      .oneOf[InInterpolation](allow, avoid, oneline, keep)
   }
 
   sealed abstract class AfterCurlyLambdaParams

@@ -119,14 +119,22 @@ object SplitsAfterInterpolationStart extends Splits {
     val end = matchingLeft(ft)
     val policy = {
       val penalty = BreakSingleLineInterpolatedString
-      if (cfg.newlines.inInterpolation eq Newlines.InInterpolation.avoid) Policy
-        .onLeft(end, "INTERP-AVOID-NL", rank = -1) { case Decision(_, ss) =>
+      // CARROT: keep uses avoid's mechanism (penalty + optimalAt stripping, so
+      // killed space splits can't force a break) but only where the source has
+      // no break; source breaks are left to normal keep handling
+      val isCarrotKeep = cfg.newlines.inInterpolation eq
+        Newlines.InInterpolation.keep
+      if (
+        (cfg.newlines.inInterpolation eq Newlines.InInterpolation.avoid) ||
+        isCarrotKeep
+      ) Policy.onLeft(end, "INTERP-AVOID-NL", rank = -1) {
+        case Decision(x, ss) if !isCarrotKeep || x.noBreak =>
           ss.map(s =>
             if (s.isNL) s.withPenalty(penalty)
             else if (s.optimalAt eq null) s
             else s.copy(optimalAt = null),
           )
-        }
+      }
       else if (!cfg.newlines.sourceIgnored && !isTripleQuote(left.text)) Policy
         .onLeft(end, "INTERP-KEEP-NONL") {
           case Decision(x, ss) if x.noBreak => ss.penalizeNL(penalty)
@@ -257,6 +265,8 @@ object SplitsAfterLeftBrace extends Splits {
     cfg.newlines.inInterpolation match {
       case Newlines.InInterpolation.avoid => Seq(spaceSplit)
       case _ if cfg.newlines.keepBreak(hasBreak) => Seq(newlineSplit(0))
+      // CARROT: without a source break, never offer one, regardless of overflow
+      case Newlines.InInterpolation.keep => Seq(spaceSplit)
       case Newlines.InInterpolation.allow
           if !dialect.allowSignificantIndentation || isSimpleInterpolate =>
         Seq(spaceSplit)

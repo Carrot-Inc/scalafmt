@@ -1,6 +1,8 @@
 runner.dialect = scala3
 maxColumn = 120
 newlines.source = keep
+newlines.inInterpolation = keep
+docstrings.style = keep
 newlines.configStyle.defnSite {
   prefer = true
   forceIfOptimized = false
@@ -650,3 +652,43 @@ object a:
       progressBar("bg")(tokensA, tokensB)
     )).when(enabled),
   )
+<<< carrot 19.1: overflowing template line never gains splice breaks
+object a:
+  def row = show"""
+     |<td style="padding:20px;color:${theme.get(TextPrimary)};font-size:30px;font-weight:600;letter-spacing:0.02em;text-align:center;">$title</td>
+     |""".stripMargin
+>>>
+object a:
+  def row = show"""
+     |<td style="padding:20px;color:${theme.get(TextPrimary)};font-size:30px;font-weight:600;letter-spacing:0.02em;text-align:center;">$title</td>
+     |""".stripMargin
+<<< carrot 19.2: multiline splice keeps its breaks, interior re-anchors
+object a:
+  def stopLabel(count: Int) =
+    s"$count Stop${
+      count match
+        case 1 => ""
+        case _ => "s"
+    }"
+>>>
+object a:
+  def stopLabel(count: Int) =
+    s"$count Stop${
+        count match
+          case 1 => ""
+          case _ => "s"
+      }"
+<<< carrot 19.3: docstrings pass through byte-exact
+object a:
+  /**
+   * Frame stays.
+   * Second line.
+   */
+  def x: Int = 1
+>>>
+object a:
+  /**
+   * Frame stays.
+   * Second line.
+   */
+  def x: Int = 1

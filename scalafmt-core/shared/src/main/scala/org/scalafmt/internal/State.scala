@@ -266,7 +266,10 @@ final class State(
       if (ft.meta.right.hasNL) getFullPenalty
       else if (
         (style.newlines.avoidForSimpleOverflowTooLong ||
-          (style.newlines.inInterpolation eq Newlines.InInterpolation.avoid)) &&
+          (style.newlines.inInterpolation eq Newlines.InInterpolation.avoid) ||
+          // CARROT: keep never inserts splice breaks, so overflow within an
+          // interpolation must stay cheap, as under avoid
+          (style.newlines.inInterpolation eq Newlines.InInterpolation.keep)) &&
         State.isWithinInterpolation(ft.meta.rightOwner)
       ) ft.right match {
         case _: T.Interpolation.End => getCustomPenalty
