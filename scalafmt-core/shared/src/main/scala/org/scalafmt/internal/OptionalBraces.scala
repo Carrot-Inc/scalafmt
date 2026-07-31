@@ -113,8 +113,15 @@ object OptionalBraces {
       else prevNonCommentSameLine(close)
     }
     def nlPolicy(implicit fileLine: FileLine) = Policy ? danglingKeyword && {
+      // CARROT fork: a comma of an enclosing arg clause may stay glued to
+      // the braceless region's last token — inside parens the region ends
+      // unambiguously, and forcing the break strands the comma alone on a
+      // dedented line. No owner constraint: a trailing comma is owned by
+      // the apply, a separator comma by the clause.
       val couldBeTucked = close.right.is[T.CloseDelim] &&
-        close.rightOwner.is[Member.SyntaxValuesClause]
+        close.rightOwner.is[Member.SyntaxValuesClause] ||
+        style.indent.ctrlBodyIndentOnlyIfBroken && style.newlines.keep &&
+        close.right.is[T.Comma]
       if (!couldBeTucked) decideNewlinesOnlyAfterClose(close)
       else decideNewlinesOnlyAfterToken(rank = 1, ifAny = true)(close)
     }

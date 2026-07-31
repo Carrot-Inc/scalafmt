@@ -88,6 +88,11 @@ case class Align(
     // CARROT fork: when true, blank lines inside a for-comprehension do not
     // split alignment blocks — the whole for aligns as one table.
     enumeratorsAcrossBlankLines: Boolean = false,
+    // CARROT fork: when true, blank lines never split multiline alignment
+    // blocks for ANY container — one match/enum/ctor aligns as one table
+    // across blank-line-separated groups (subsumes
+    // enumeratorsAcrossBlankLines).
+    acrossBlankLines: Boolean = false,
     // CARROT fork: when true, an alignment candidate on a continuation line
     // of a multiline member (e.g. the arrow of a multiline-pattern case)
     // still belongs to the enclosing container's alignment block.

@@ -555,7 +555,21 @@ class FormatWriter(formatOps: FormatOps) {
             val preserved =
               if (
                 mod.length >= 1 && tok.noBreak && tokenAligns.get(i).isEmpty &&
-                  style.spaces.isPreserveBefore(tok.meta.right.text)
+                  // CARROT fork: comments carry their full text as the token
+                  // text; key line comments as "//" (like align.tokens does)
+                  (style.spaces.isPreserveBefore(
+                    if (tok.right.is[T.Comment] && tok.meta.right.text.startsWith("//")) "//"
+                    else tok.meta.right.text,
+                  ) || style.spaces.isPreserveAfter(tok.meta.left.text)) && {
+                    // the source gap must be pure whitespace — a rewrite may
+                    // have removed tokens between (e.g. a stripped `{`),
+                    // whose span must not masquerade as hand alignment
+                    val text = tok.left.input.text
+                    var j = tok.left.end
+                    while (j < tok.right.start && text.charAt(j).isWhitespace)
+                      j += 1
+                    j == tok.right.start
+                  }
               ) tok.right.start - tok.left.end
               else 0
             if (preserved > width) carrotPreservedExtra += preserved - width
@@ -1316,9 +1330,11 @@ class FormatWriter(formatOps: FormatOps) {
           )(implicit floc: FormatLocation): Unit = {
             val isBlankLine = (floc.state.mod.isBlankLine ||
               extraBlankTokens.contains(floc.formatToken.idx)) && {
-              // CARROT fork: align.enumeratorsAcrossBlankLines — blank lines
-              // inside a for-comprehension do not split alignment blocks.
-              !styleMap.init.align.enumeratorsAcrossBlankLines || {
+              // CARROT fork: align.acrossBlankLines — blank lines never
+              // split alignment blocks (one container = one table);
+              // align.enumeratorsAcrossBlankLines is the for-only variant.
+              !styleMap.init.align.acrossBlankLines &&
+              (!styleMap.init.align.enumeratorsAcrossBlankLines || {
                 val c =
                   if (alignContainer ne null) alignContainer
                   else prevAlignContainer
@@ -1327,7 +1343,7 @@ class FormatWriter(formatOps: FormatOps) {
                       _: Term.ForYield => false
                   case _ => true
                 }
-              }
+              })
             }
             if (alignContainer ne null) {
               val candidates = columnCandidates.result()
@@ -2181,11 +2197,13 @@ object FormatWriter {
         // a multiline clause's dangling close paren) are never padded.
         (!floc.style.alignOnlyIfOwnerStartsLine.contains(code) ||
           ownerStartsLine(owner)) &&
-        // CARROT fork: onlyIfCaseClassParam — owner must be a modifier-less
-        // param of a case-class or enum-case primary ctor.
+        // CARROT fork: onlyIfCaseClassParam — owner must be a param of a
+        // case-class or enum-case primary ctor with no modifiers other than
+        // annotations (val/var params opt out; @jsonField-style annotations
+        // keep the param in the type column).
         (!floc.style.alignOnlyIfCaseClassParam.contains(code) || (owner match {
-          case p: Term.Param if p.mods.isEmpty => p.parent.flatMap(_.parent)
-              .flatMap(_.parent).exists {
+          case p: Term.Param if p.mods.forall(_.is[Mod.Annot]) => p.parent
+              .flatMap(_.parent).flatMap(_.parent).exists {
                 case c: Defn.Class => c.mods.exists(_.is[Mod.Case])
                 case _: Defn.EnumCase => true
                 case _ => false

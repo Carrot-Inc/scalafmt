@@ -73,6 +73,10 @@ case class Spaces(
     // instead of being normalized to a single space. Keeps hand-aligned
     // tables aligned and leaves unaligned code untouched.
     preserveBefore: Seq[String] = Nil,
+    // CARROT fork: like preserveBefore, but for the run of spaces AFTER the
+    // listed token — e.g. `%` rows of an sbt dependency table pad after the
+    // operator so artifact names line up with `%%` rows.
+    preserveAfter: Seq[String] = Nil,
     // CARROT fork: if true, always puts a space between an access modifier
     // and its qualifier bracket: `private [scope]` house style.
     afterAccessModifier: Boolean = false,
@@ -82,6 +86,10 @@ case class Spaces(
 
   @inline
   def isPreserveBefore(tokenText: String): Boolean = preserveBefore
+    .contains(tokenText)
+
+  @inline
+  def isPreserveAfter(tokenText: String): Boolean = preserveAfter
     .contains(tokenText)
 }
 

@@ -1050,7 +1050,7 @@ object SplitsAfterRightArrow extends Splits {
         ExpiresOn.After,
       ))
     }
-    CtrlBodySplits.checkComment(nlSplit(ft)) { nft =>
+    val splits = CtrlBodySplits.checkComment(nlSplit(ft)) { nft =>
       def withSlbSplit(implicit l: FileLine) =
         Seq(baseSplit.withSingleLine(getLastNonTrivial(body)), nlSplit(nft)(1))
       implicit val beforeMultiline = cfg.newlines.getBeforeMultiline
@@ -1078,6 +1078,30 @@ object SplitsAfterRightArrow extends Splits {
         (getSingleStatExceptEndMarker(body) eq null)
       ) withSlbSplit
       else getFolded(beforeMultiline eq Newlines.keep)
+    }
+    // CARROT fork: a for-comprehension glued to the case arrow whose first
+    // enumerator the source nests deeper than indent.main re-opens the
+    // deferred case-body indent on the glued splits — the body stays
+    // visually inside its case (route-style `case ... => for` bodies keep
+    // enumerators at case+4 and `yield` at case+2, as written).
+    val carrotNestedFor = cfg.indent.ctrlBodyIndentOnlyIfBroken &&
+      cfg.newlines.keep && noBreak && body.is[Term.ForClause] &&
+      (body match {
+        case Tree.WithEnums(xs) if xs.nonEmpty =>
+          val enumHead = xs.head
+          enumHead.pos.startLine > getHead(body).left.pos.startLine &&
+          enumHead.pos.startColumn - getHead(owner).left.pos.startColumn >
+          cfg.indent.main
+        case _ => false
+      })
+    if (!carrotNestedFor) splits
+    else {
+      val indent = Indent(
+        cfg.indent.main,
+        nextNonCommentSameLine(getLast(owner)),
+        ExpiresOn.After,
+      )
+      splits.map(s => if (s.isNL) s else s.withIndent(indent))
     }
   }
 }
@@ -1951,6 +1975,32 @@ object SplitsAfterLeftParenOrBracket {
     // canonical config style; all-inline clauses stay inline. Tuples are
     // exempt (source-driven). Breaks inside a single glued argument's own
     // body do not count as clause-level breaks.
+    // CARROT fork: intrinsic clause end for the overflow trigger — collapse
+    // the (same-line) source gap before an enclosing case arrow to one
+    // space, so aligner padding read back on a second pass does not
+    // masquerade as an overflowing clause.
+    def carrotIntrinsicEnd = {
+      @tailrec
+      def toCase(t: Tree): Case = t match {
+        case c: Case => c
+        case _ => t.parent match {
+            case Some(p) => toCase(p)
+            case None => null
+          }
+      }
+      val c = toCase(leftOwner)
+      val gap =
+        if (c eq null) 0
+        else {
+          val aft = getCaseArrow(c)
+          if ((aft eq null) || aft.left.pos.startLine != right.pos.startLine) 0
+          else {
+            val pft = prev(aft)
+            if (pft.noBreak) aft.left.start - pft.left.end else 0
+          }
+        }
+      close.left.pos.endColumn - math.max(0, gap - 1)
+    }
     val carrotCallConfigStyle = !defnSite && !tupleSite && !isBracket &&
       cfg.newlines.keep && cfg.indent.ctrlBodyIndentOnlyIfBroken &&
       (closeBreak || args.exists(arg => tokenJustBefore(arg).hasBreak) ||
@@ -1958,7 +2008,7 @@ object SplitsAfterLeftParenOrBracket {
         // config style in ONE pass, or the next pass would read the wrap's
         // breaks as the trigger (not idempotent)
         noBreak && right.pos.startLine == close.left.pos.startLine &&
-        close.left.pos.endColumn > cfg.maxColumn)
+        carrotIntrinsicEnd > cfg.maxColumn)
     val onlyConfigStyle = forceConfigStyle || carrotCallConfigStyle ||
       !carrotKeepNonConfig &&
       preserveConfigStyle(ft, mustDangleForTrailingCommas || closeBreak)
@@ -3070,6 +3120,14 @@ object SplitsAfterAt extends Splits {
   ): Seq[Split] = {
     import ft._
     if (leftOwner.is[Pat.Bind]) Seq(Split(Space, 0))
+    // CARROT fork: scalameta elides the no-op wildcard bind — `_ @ pat` is
+    // represented as just `pat`, no Pat.Bind node — so the check above
+    // misses it; the `@` after `_` in a pattern keeps a symmetric space.
+    else if (
+      cfg.indent.ctrlBodyIndentOnlyIfBroken &&
+      fo.tokens.prev(ft).left.is[T.Underscore] &&
+      (leftOwner.is[Case] || leftOwner.is[Pat])
+    ) Seq(Split(Space, 0))
     else right match {
       case _: T.Symbolic => Seq(Split(NoSplit, 0))
       // Add space if right starts with a symbol

@@ -554,7 +554,7 @@ class RedundantBraces(implicit val ftoks: FormatTokens)
   // but the reverse conversion isn't always possible
   private def okToRemoveFunctionInApplyOrInit(
       t: Term.FunctionLike,
-  )(implicit style: ScalafmtConfig): Boolean = t.parent match {
+  )(implicit style: ScalafmtConfig): Boolean = (t.parent match {
     case Some(p: Term.ArgClause) => p.parent match {
         case Some(_: Init) => okToRemoveAroundFunctionBody(t.body, false)
         case Some(_: Term.Apply) => (getOpeningParen(p) ne null) &&
@@ -562,7 +562,7 @@ class RedundantBraces(implicit val ftoks: FormatTokens)
         case _ => false
       }
     case _ => false
-  }
+  }) && !carrotBraceStrandsComma(t.body)
 
   private def processBlock(b: Term.Block)(implicit
       ft: FT,
@@ -611,6 +611,16 @@ class RedundantBraces(implicit val ftoks: FormatTokens)
     case _ => true
   }
 
+  // CARROT fork: stripping braces around a multi-stat function body whose
+  // `}` is directly followed by a comma strands the comma alone on a
+  // dedented line (the braceless region cannot absorb it); keep the braces.
+  private def carrotBraceStrandsComma(
+      b: Term,
+  )(implicit style: ScalafmtConfig): Boolean = style.indent
+    .ctrlBodyIndentOnlyIfBroken && style.newlines.keep &&
+    (getTreeSingleStat(b) eq null) &&
+    ftoks.nextNonComment(ftoks.getLast(b)).right.is[T.Comma]
+
   private def okToRemoveBlock(
       b: Term.Block,
   )(implicit ft: FT, style: ScalafmtConfig, session: Session): Boolean = b
@@ -650,7 +660,8 @@ class RedundantBraces(implicit val ftoks: FormatTokens)
         checkBlockAsBody(b, d.body, noParams = d.paramClauseGroups.isEmpty)
 
       case p: Term.FunctionLike if isFunctionWithBraces(p) =>
-        okToRemoveAroundFunctionBody(b, okIfMultipleStats = true)
+        okToRemoveAroundFunctionBody(b, okIfMultipleStats = true) &&
+        !carrotBraceStrandsComma(b)
 
       case _: Term.If => settings.ifElseExpressions &&
         shouldRemoveSingleStatBlock(b)

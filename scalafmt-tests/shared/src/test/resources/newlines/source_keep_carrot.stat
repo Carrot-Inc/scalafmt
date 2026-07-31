@@ -17,10 +17,11 @@ newlines.configStyle.callSite {
 }
 align.openParenDefnSite = true
 continuationIndent.defnSite = 2
-spaces.preserveBefore = ["->"]
+spaces.preserveBefore = ["->", "%", "%%", "//"]
+spaces.preserveAfter = ["%"]
 spaces.afterAccessModifier = true
 spaces.beforeContextBoundColon = IfMultipleBounds
-align.enumeratorsAcrossBlankLines = true
+align.acrossBlankLines = true
 align.multiline = true
 align.multilineMembers = true
 align.allowOverflow = true
@@ -815,3 +816,185 @@ object a:
       if exists then state.nodes.map(node => if node.id === newNode.id then newNode else node)
       else state.nodes :+ newNode
     setState(state.copy(history = newNodes))
+<<< carrot 21.1: hand %/%% dependency table preserved, unaligned control untouched
+object deps:
+  val a = List(
+    "dev.zio"                        %% "zio-json"   % zioJsonVersion,
+    "org.postgresql"                  % "postgresql" % postgresVersion,
+  )
+  val unaligned = List(
+    "dev.zio" %% "zio-json" % zioJsonVersion,
+  )
+>>>
+object deps:
+  val a = List(
+    "dev.zio"                        %% "zio-json"   % zioJsonVersion,
+    "org.postgresql"                  % "postgresql" % postgresVersion,
+  )
+  val unaligned = List(
+    "dev.zio" %% "zio-json" % zioJsonVersion,
+  )
+<<< carrot 21.2: hand trailing-comment column preserved
+object a:
+  val agents = Map(
+    raw"(?i)\bcrios/".r  -> "Mobile Chrome",  // Chrome on iOS
+    raw"(?i)\bfxios/".r  -> "Mobile Firefox", // Firefox on iOS
+  )
+>>>
+object a:
+  val agents = Map(
+    raw"(?i)\bcrios/".r  -> "Mobile Chrome",  // Chrome on iOS
+    raw"(?i)\bfxios/".r  -> "Mobile Firefox", // Firefox on iOS
+  )
+<<< carrot 21.3: annotated params join the ctor type column
+final case class Check(
+  typ: CheckType,
+  @jsonField("name")
+  name:                 String,
+  interval: Duration,
+)
+>>>
+final case class Check(
+  typ:      CheckType,
+  @jsonField("name")
+  name:     String,
+  interval: Duration,
+)
+<<< carrot 21.4: match and enum tables stay one column across blank lines
+object a:
+  def label(s: OrderStatus): String = s match
+    case OrderStatus.Open  => "open"
+    case OrderStatus.Ready => "ready"
+
+    case OrderStatus.PendingDelivery => "pending"
+
+  enum Setting(val key: String):
+    case Alpha extends Setting("alpha")
+
+    case GammaLongest extends Setting("gamma")
+>>>
+object a:
+  def label(s: OrderStatus): String = s match
+    case OrderStatus.Open            => "open"
+    case OrderStatus.Ready           => "ready"
+
+    case OrderStatus.PendingDelivery => "pending"
+
+  enum Setting(val key: String):
+    case Alpha        extends Setting("alpha")
+
+    case GammaLongest extends Setting("gamma")
+<<< carrot 21.5: pattern-binder @ spacing is symmetric, incl. elided wildcard bind
+object a:
+  def f(x: Any) = x match
+    case t@X => 1
+    case _ @GET -> Root / "x" => 2
+>>>
+object a:
+  def f(x: Any) = x match
+    case t @ X                 => 1
+    case _ @ GET -> Root / "x" => 2
+<<< carrot 21.6: route-case for body nested deeper in source keeps its nesting
+object a:
+  def routes = of:
+    case GET -> Root / "category"
+        :? LocationIdQueryParamMatcher(locId)
+        as authInfo => for
+        categories <- rules.getAllCategories(locId)
+        resp       <- Ok(categories)
+      yield resp
+>>>
+object a:
+  def routes = of:
+    case GET -> Root / "category"
+        :? LocationIdQueryParamMatcher(locId)
+        as authInfo => for
+        categories <- rules.getAllCategories(locId)
+        resp       <- Ok(categories)
+      yield resp
+<<< carrot 21.7: multi-stat lambda body keeps braces before a comma (no lonely comma)
+object a:
+  val col = mkColumn(
+    header = "Time",
+    render = row => {
+      val utcTime = row.time.atZone(ZoneId.of("Z"))
+      div(utcTime.toLocalTime.formatISO)
+    },
+    width = Some(110),
+  )
+>>>
+object a:
+  val col = mkColumn(
+    header = "Time",
+    render = row => {
+      val utcTime = row.time.atZone(ZoneId.of("Z"))
+      div(utcTime.toLocalTime.formatISO)
+    },
+    width = Some(110),
+  )
+<<< carrot 21.8: for-table keeps one column past a multiline enumerator
+object a:
+  def submit = for
+    apiResult <- Actions.api.postInvoice(draft)
+    resp      <- apiResult match
+      case Left(err) => Actions.showError(err)
+      case Right(ok) => Actions.showSuccess(ok)
+    _         <- Actions.refreshBilling
+  yield resp
+>>>
+object a:
+  def submit = for
+    apiResult <- Actions.api.postInvoice(draft)
+    resp      <- apiResult match
+      case Left(err) => Actions.showError(err)
+      case Right(ok) => Actions.showSuccess(ok)
+    _         <- Actions.refreshBilling
+  yield resp
+<<< carrot 21.9: single-% rows pad after the operator to align artifact names
+object deps:
+  val a = List(
+    "dev.zio"                        %% "zio-json"                          % zioJsonVersion,
+    "com.typesafe"                   %  "config"                            % "1.4.5",
+  )
+>>>
+object deps:
+  val a = List(
+    "dev.zio"                        %% "zio-json"                          % zioJsonVersion,
+    "com.typesafe"                   %  "config"                            % "1.4.5",
+  )
+<<< carrot 21.10: comma glues to a braceless if/else argument's last token
+object a:
+  def render = div(
+    if activities.isEmpty then
+      renderEmptyMessage
+    else
+      EmptyVdom,
+    cardList(props),
+  )
+>>>
+object a:
+  def render = div(
+    if activities.isEmpty then
+      renderEmptyMessage
+    else
+      EmptyVdom,
+    cardList(props),
+  )
+<<< carrot 21.11: trailing comma glues to a braceless if/else argument too
+object a:
+  def render = button(
+    onClick ==> dispatchRoute,
+    if dispatching then
+      TagMod("Dispatching")
+    else
+      TagMod("Route"),
+  )
+>>>
+object a:
+  def render = button(
+    onClick ==> dispatchRoute,
+    if dispatching then
+      TagMod("Dispatching")
+    else
+      TagMod("Route"),
+  )

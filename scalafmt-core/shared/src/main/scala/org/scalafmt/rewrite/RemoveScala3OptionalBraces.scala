@@ -318,7 +318,14 @@ private class RemoveScala3OptionalBraces(implicit val ftoks: FormatTokens)
       if (tree ne t.body) null
       else if (pft.left.is[T.Equals]) removeToken
       else null
-    case p: Tree.WithBody => if (p.body eq tree) removeToken else null
+    case p: Tree.WithBody =>
+      // CARROT fork: stripping braces around a multi-stat body whose `}` is
+      // directly followed by a comma strands the comma alone on a dedented
+      // line (the braceless region cannot absorb it); keep the braces.
+      def strandsComma = style.indent.ctrlBodyIndentOnlyIfBroken &&
+        style.newlines.keep && !isSingleStatBlock(tree) &&
+        ftoks.nextNonComment(ftoks.matchingRight(ft)).right.is[T.Comma]
+      if ((p.body eq tree) && !strandsComma) removeToken else null
     case p: Term.ArgClause => headTokenOrNull(p) match {
         case _: T.LeftBrace => onLeftForArgClause(p)
         case px: T.LeftParen
