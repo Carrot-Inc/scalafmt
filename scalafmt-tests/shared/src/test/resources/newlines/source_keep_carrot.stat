@@ -26,7 +26,7 @@ align.multilineMembers = true
 align.allowOverflow = true
 align.tokenCategory."Equals" = "Assign"
 align.tokenCategory."LeftArrow" = "Assign"
-align.tokens."+" = [{ code = "<-" }, { code = "=", owners = [{ regex = "Enumerator\\.Val" }] }, { code = ":", owners = [{ regex = "Term\\.Param", parents = ["Ctor\\.Primary"] }], onlyIfClauseBroken = true, onlyIfCaseClassParam = true }, { code = "extends", owners = [{ regex = "Defn\\.EnumCase" }] }]
+align.tokens."+" = [{ code = "<-" }, { code = "=", owners = [{ regex = "Enumerator\\.Val" }] }, { code = ":", owners = [{ regex = "Term\\.Param", parents = ["Ctor\\.Primary"] }], onlyIfClauseBroken = true, onlyIfCaseClassParam = true }, { code = "extends", owners = [{ regex = "Defn\\.EnumCase" }], onlyIfOwnerStartsLine = true }]
 trailingCommas = keep
 indent.ctrlBodyIndentOnlyIfBroken = true
 indent.preservePatAltIndent = true
@@ -35,6 +35,8 @@ indent.preserveAssignIndent = true
 indent.preserveInfixIndent = true
 rewrite.scala3.convertToNewSyntax = true
 rewrite.scala3.removeOptionalBraces.enabled = true
+rewrite.rules = [RedundantBraces]
+rewrite.redundantBraces.stringInterpolation = true
 <<< carrot 1.1: braceless for-yield after = stays inline under keep
 object a:
   def forOnTheSameLine(param: String): Task[Int] = for
@@ -692,3 +694,124 @@ object a:
    * Second line.
    */
   def x: Int = 1
+<<< carrot 20.1: then-body after trailing comment keeps its indent
+object a:
+  def f: Unit =
+    if ref.current.forall(_.isRight) then { // errors stay stuck
+      action match
+        case Some(r) => ref.current = Some(Right(r))
+        case None    => ref.current = Some(Left(mkError))
+    }
+>>>
+object a:
+  def f: Unit =
+    if ref.current.forall(_.isRight) then // errors stay stuck
+      action match
+        case Some(r) => ref.current = Some(Right(r))
+        case None    => ref.current = Some(Left(mkError))
+<<< carrot 20.2: parenthesized-if application gets no stray space
+object a:
+  def render = (if expanded then Icons.caratDown else Icons.caratUp) (cls := "flex-none")
+>>>
+object a:
+  def render = (if expanded then Icons.caratDown else Icons.caratUp)(cls := "flex-none")
+<<< carrot 20.3: extends aligner never pads a dangling close paren
+enum Job(status: String):
+  case Pending extends Job("PENDING")
+  case Finished(
+    result:     String,
+    durationMs: Long
+  )                      extends Job("FINISHED")
+>>>
+enum Job(status: String):
+  case Pending extends Job("PENDING")
+  case Finished(
+    result:     String,
+    durationMs: Long
+  ) extends Job("FINISHED")
+<<< carrot 20.4: preserved -> runs don't desync later aligner stops
+object a:
+  def classify(s: Any): String = s match
+    case ("a", 1)   -> 1 => "one"
+    case ("bbbb", 2) -> 2 => "two"
+    case _ => "other"
+>>>
+object a:
+  def classify(s: Any): String = s match
+    case ("a", 1)   -> 1  => "one"
+    case ("bbbb", 2) -> 2 => "two"
+    case _                => "other"
+<<< carrot 20.5: glued implicit clause with params under the first param is kept
+trait HttpClient:
+  def runRequest[Req, Res](method: Method, payload: Option[Req], uri: Uri)
+                          (implicit encoder: EntityEncoder[LTask, Req],
+                                    resDecoder: EntityDecoder[LTask, Res],
+                                    errResDecoder: EntityDecoder[LTask, ErrRes]): LTask[Res]
+>>>
+trait HttpClient:
+  def runRequest[Req, Res](method: Method, payload: Option[Req], uri: Uri)
+                          (implicit encoder: EntityEncoder[LTask, Req],
+                                    resDecoder: EntityDecoder[LTask, Res],
+                                    errResDecoder: EntityDecoder[LTask, ErrRes]): LTask[Res]
+<<< carrot 20.6: glued case head with multiline pattern stays glued
+object a:
+  val activityEvent = FC[ActivityEventProps] { case ActivityEventProps(
+        event,
+        findLoyaltyLevel,
+        goToProfile
+      ) =>
+    event match
+      case FirstLogin(_) => div("First Login")
+  }
+>>>
+object a:
+  val activityEvent = FC[ActivityEventProps] { case ActivityEventProps(
+        event,
+        findLoyaltyLevel,
+        goToProfile
+      ) =>
+    event match
+      case FirstLogin(_) => div("First Login")
+  }
+<<< carrot 20.7: multiline chain glued after lambda arrow is kept
+object a:
+  val lastResolvedIndex = lastResolved
+    .flatMap { lastResolvedDate => sortedMessagesWithIndex
+      .findLast { case (message, _) => message.date.isBefore(lastResolvedDate) }
+    }.map { case (_, index) => index }
+>>>
+object a:
+  val lastResolvedIndex = lastResolved
+    .flatMap { lastResolvedDate => sortedMessagesWithIndex
+      .findLast { case (message, _) => message.date.isBefore(lastResolvedDate) }
+    }.map { case (_, index) => index }
+<<< carrot 20.8: glued `) else` stays glued with a multiline then-branch
+object a:
+  def render = div(
+    if props.checked then TagMod(
+      renderInput,
+      div(cls := "ml-2 font-bold", "$"),
+    ) else EmptyVdom
+  )
+>>>
+object a:
+  def render = div(
+    if props.checked then TagMod(
+      renderInput,
+      div(cls := "ml-2 font-bold", "$"),
+    ) else EmptyVdom
+  )
+<<< carrot 20.9: else on its own source line is never joined
+object a:
+  def updateNode(newNode: PageNode): Callback =
+    val newNodes =
+      if exists then state.nodes.map(node => if node.id === newNode.id then newNode else node)
+      else state.nodes :+ newNode
+    setState(state.copy(history = newNodes))
+>>>
+object a:
+  def updateNode(newNode: PageNode): Callback =
+    val newNodes =
+      if exists then state.nodes.map(node => if node.id === newNode.id then newNode else node)
+      else state.nodes :+ newNode
+    setState(state.copy(history = newNodes))

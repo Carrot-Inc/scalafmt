@@ -54,6 +54,16 @@ class FormatOps(
       classifier: Classifier[T, A],
   ): FT = findFirst(start, prev(end))(x => classifier(x.right))
 
+  // CARROT fork: the last format token on `start`'s source line (stopping
+  // before trailing comments) — the span the source glued together, used as
+  // the expire of keep-mode inline-body single-line policies. Within the
+  // span every token pair has no source break, so keep rules offer spaces
+  // there and the policy cannot conflict with them.
+  @tailrec
+  final def getEndOfSourceLine(start: FT): FT =
+    if (start.hasBreak || start.right.isAny[T.EOF, T.Comment]) start
+    else getEndOfSourceLine(tokens.next(start))
+
   @tailrec
   final def getSlbEndOnLeft(start: FT)(implicit style: ScalafmtConfig): FT = {
     val nft = start.right match {
@@ -276,6 +286,17 @@ class FormatOps(
     .foldLeft(Policy.noPolicy) { case (res, els) =>
       getBreakBeforeElsePolicy(els) ==> res
     }
+
+  // CARROT fork: keep-mode variant of getBreakBeforeElsePolicy — the break
+  // before `else` is forced only where the source has one; a glued `) else x`
+  // stays glued and an `else` on its own source line is never joined.
+  def getKeepBreakBeforeElsePolicy(term: Term.If)(implicit
+      cfg: ScalafmtConfig,
+  ): Policy = getElseToken(term) match {
+    case null | (_, null) => Policy.NoPolicy
+    case (_, els) =>
+      if (els.hasBreak) getBreakBeforeElsePolicy(els) else Policy.NoPolicy
+  }
 
   private final def getElseToken(term: Term.If)(implicit
       cfg: ScalafmtConfig,

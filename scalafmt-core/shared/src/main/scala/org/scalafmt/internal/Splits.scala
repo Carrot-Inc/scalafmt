@@ -497,7 +497,24 @@ object SplitsAfterLeftBrace extends Splits {
     // must be after nlSplit
     val lambdaSplit =
       if (noLambdaSplit) Split.ignored
-      else {
+      // CARROT fork: under keep with the fork flag, a glued `{ case Pat(...`
+      // head whose pattern spans source lines stays glued (the full
+      // head-single-line split below would die on the pattern's breaks and
+      // force a break after `{`); the arrow still breaks before the body and
+      // the closing brace stays dangled.
+      else if (
+        cfg.indent.ctrlBodyIndentOnlyIfBroken && cfg.newlines.keep &&
+        noBreak && right.is[T.KwCase] &&
+        lambdaExpire.left.pos.startLine > right.pos.startLine
+      ) {
+        val miniEnd = getEndOfSourceLine(ft)
+        val policy = (Policy ? lambdaExpire.hasBreak &&
+          decideNewlinesOnlyAfterToken(lambdaExpire)) ==>
+          newlineBeforeClosingCurly
+        Split(noSplitMod, 0, SingleLineBlock(miniEnd) ==> policy)
+          .withOptimalToken(miniEnd, killOnFail = true, recurseOnly = true)
+          .withIndent(lambdaIndent, close, Before)
+      } else {
         val nlPolicy = newlineBeforeClosingCurly
         var mod: Modification = null
         val policy =
@@ -517,7 +534,13 @@ object SplitsAfterLeftBrace extends Splits {
             }
           } else {
             mod = noSplitMod
-            decideNewlinesOnlyAfterToken(lambdaExpire) ==> nlPolicy
+            // CARROT fork: under keep with the fork flag, don't force a
+            // break after the arrow when the source glued the body head to
+            // it — the arrow's own splits keep it inline.
+            val carrotInlineBody = cfg.indent.ctrlBodyIndentOnlyIfBroken &&
+              cfg.newlines.keep && lambdaExpire.noBreak
+            if (carrotInlineBody) nlPolicy
+            else decideNewlinesOnlyAfterToken(lambdaExpire) ==> nlPolicy
           }
         Split(mod, 0, SingleLineBlock(lambdaExpire) ==> policy)
           .withOptimalToken(lambdaExpire, killOnFail = true)
@@ -931,7 +954,7 @@ object SplitsAfterFunctionArrow extends Splits {
             cfg.indent.ctrlBodyIndentOnlyIfBroken && cfg.newlines.keep &&
             noBreak
           ) {
-            val miniEnd = getSlbEndOnLeft(next(ft))
+            val miniEnd = getEndOfSourceLine(ft)
             Split(Space, 0).withPolicy(SingleLineBlock(miniEnd))
               .withOptimalToken(miniEnd, killOnFail = true, recurseOnly = true)
           } else Split(noSingleLine, 0)(Space).withSingleLine(endOfFunction)
@@ -959,6 +982,18 @@ object SplitsAfterFunctionArrow extends Splits {
         case _: Member.Function => spaceSplitBase
         case Term.Block((_: Member.Function) :: Nil)
             if !nextNonComment(ft).right.is[T.LeftBrace] => spaceSplitBase
+        // CARROT fork: with indent.ctrlBodyIndentOnlyIfBroken under
+        // newlines.source=keep, a multiline block-lambda body with no source
+        // break after `=>` may keep its head on the arrow line (upstream
+        // requires the whole body on a single line), mirroring the
+        // functionOrSelf carve-out; continuation lines anchor at the
+        // statement level.
+        case _
+            if cfg.indent.ctrlBodyIndentOnlyIfBroken && cfg.newlines.keep &&
+              noBreak && !nextNonComment(ft).right.is[T.LeftBrace] =>
+          val miniEnd = getEndOfSourceLine(ft)
+          spaceSplitBase.withPolicy(SingleLineBlock(miniEnd))
+            .withOptimalToken(miniEnd, killOnFail = true, recurseOnly = true)
         case _ if afterCurlySpace && {
               cfg.newlines.fold || !rightOwner.is[Defn]
             } =>
@@ -1272,6 +1307,12 @@ object SplitsBeforeLeftParenOrBracket extends Splits {
         prevFt.left match {
           case _: T.RightParen | _: T.RightBrace =>
             prevFt.meta.leftOwner match {
+              // CARROT fork: a `)` closing a fully parenthesized if/while
+              // (its last token) is an expression head being applied, e.g.
+              // `(if a then f else g)(x)` — no space. The exclusion below is
+              // meant for a condition's close paren before a parenthesized
+              // body, `if (a) (b)`, where the space must stay.
+              case t: Term.If if isTokenLastOrAfter(prevFt.left, t) => true
               case _: Term.For | _: Term.If | _: Term.While => false
               case t: Term.EnumeratorsBlock => t.parent.is[Term.For]
               case _ => true
@@ -1888,11 +1929,19 @@ object SplitsAfterLeftParenOrBracket {
     // config style — the non-config path preserves the breaks, alignment
     // keeps params under the paren, and the close-paren keep preserves the
     // dangle. Params NOT under the paren mean config style (normalize).
+    // CARROT fork: an implicit/using modifier heading the clause — the
+    // continuation-param reference column is then the first param's (after
+    // the modifier), not the modifier's own.
+    val carrotImplicitHead = (defnSite || tupleSite) && cfg.newlines.keep &&
+      cfg.indent.ctrlBodyIndentOnlyIfBroken && soft.ImplicitOrUsing(right) &&
+      hasImplicitParamList(nft.rightOwner)
     val carrotKeepNonConfig = (defnSite || tupleSite) && cfg.newlines.keep &&
       cfg.indent.ctrlBodyIndentOnlyIfBroken && noBreak &&
       beforeClose.left.pos.startLine > right.pos.startLine &&
       (tupleSite || {
-        val col = right.pos.startColumn
+        val col =
+          if (carrotImplicitHead && args.nonEmpty) args.head.pos.startColumn
+          else right.pos.startColumn
         args.forall(arg =>
           !tokenJustBefore(arg).hasBreak || arg.pos.startColumn == col,
         )
@@ -1968,6 +2017,18 @@ object SplitsAfterLeftParenOrBracket {
     // elements one level in).
     if (carrotKeepNonConfig && tupleSite && (noSplitMod ne null))
       return Seq(Split(noSplitMod, 0).withIndent(indent))
+
+    // CARROT fork: an implicit/using clause glued in source through its
+    // first param, with continuation params hand-aligned under that param,
+    // is preserved as-source — no forced break after the modifier, no
+    // one-param-per-line policy. The continuation-column anchor is provided
+    // by the split after the modifier (SplitsAfterImplicit), so no indent
+    // region is opened here; a broken-after-modifier clause has no such
+    // anchor and must take the upstream path.
+    if (
+      carrotKeepNonConfig && carrotImplicitHead && (noSplitMod ne null) &&
+      args.nonEmpty && tokenJustBefore(args.head).noBreak
+    ) return Seq(Split(noSplitMod, 0))
 
     // CARROT fork rule B complement: a call clause with NO clause-level
     // source breaks whose interior still spans lines (the glued trailing-arg
@@ -3220,7 +3281,15 @@ object SplitsAfterIf extends Splits {
           else Space(cfg.spaces.isSpaceAfterKeyword(right))
         val slb = Split(mod.isNL, 0)(mod).withSingleLine(expire)
         val mlSplitBase = Split(mod, if (slb.isIgnored) 0 else 1).withPolicy(
-          if (isKeep) getBreakBeforeElsePolicy(t)
+          // CARROT fork: under keep with the fork flag, a break before
+          // `else` is forced only where the source has one — a glued
+          // `) else x` stays glued, and an `else` the source put on its own
+          // line is never joined (the forced break also kills the
+          // single-line split above).
+          if (isKeep)
+            if (cfg.indent.ctrlBodyIndentOnlyIfBroken)
+              getKeepBreakBeforeElsePolicy(t)
+            else getBreakBeforeElsePolicy(t)
           else getBreaksBeforeElseChainPolicy(t),
         )
         val mlSplitOpt = OptionalBraces
@@ -3460,12 +3529,31 @@ object SplitsBeforeElseYield extends Splits {
   ): Seq[Split] = {
     import fo._, tokens._, ft._
     if (ft.hasBlankLine) Seq(Split(Newline2x, 0))
-    else if (left.is[T.RightBrace]) Seq(Split(Space, 0))
+    // CARROT fork: under keep with the fork flag, a source break before
+    // `else`/`yield` after a closing brace is kept (upstream glues `} else`
+    // unconditionally, silently joining an else the source put on its own
+    // line — including when the brace was rewritten to a paren).
+    else if (left.is[T.RightBrace])
+      if (
+        cfg.indent.ctrlBodyIndentOnlyIfBroken && cfg.newlines.keep && hasBreak
+      ) Seq(Split(Newline, 0))
+      else Seq(Split(Space, 0))
     else {
       val noSplit =
         if (cfg.newlines.okSpaceForSource(newlinesBetween)) {
           val expire = getLast(rightOwner)
-          Split(Space, 0).withSingleLineNoOptimal(
+          // CARROT fork: under keep with the fork flag, a glued `else` stays
+          // glued even when its branch is multiline — single-line only
+          // through the branch head; the body itself is handled by the
+          // after-keyword inline splits.
+          if (
+            cfg.indent.ctrlBodyIndentOnlyIfBroken && cfg.newlines.keep &&
+            right.is[T.KwElse]
+          ) {
+            val miniEnd = getEndOfSourceLine(ft)
+            Split(Space, 0).withPolicy(SingleLineBlock(miniEnd))
+              .withOptimalToken(miniEnd, killOnFail = true, recurseOnly = true)
+          } else Split(Space, 0).withSingleLineNoOptimal(
             expire,
             exclude = insideBracesBlock(ft, expire),
             noSyntaxNL = right.is[T.KwYield],
@@ -3789,13 +3877,33 @@ object SplitsAfterImplicit extends Splits {
     val params = if (ok) TreeOps.getImplicitParamList(leftOwner) else null
     if (params eq null) Nil
     else {
-      val spaceSplit =
-        if (cfg.newlines.forceAfterImplicitParamListModifier) Split.ignored
-        else Split(Space, 0).withPolicy(
-          SingleLineBlock(getLast(params)),
-          cfg.newlines.notPreferAfterImplicitParamListModifier,
-        )
-      Seq(spaceSplit, Split(Newline, if (spaceSplit.isActive) 1 else 0))
+      // CARROT fork: under keep with the fork flag, `(implicit x: X,` glued
+      // in source with continuation params hand-aligned under the first
+      // param stays glued even when the list is multiline; the StateColumn
+      // indent anchors those continuation lines at the first param's output
+      // column. Mirrors the getNoBinPack as-source carve-out, which opens no
+      // indent region of its own for this shape.
+      val vals = params.values
+      val carrotKeep = cfg.newlines.keep &&
+        cfg.indent.ctrlBodyIndentOnlyIfBroken && noBreak && vals.nonEmpty && {
+          val col = vals.head.pos.startColumn
+          getLast(params).left.pos.startLine > right.pos.startLine &&
+          vals.forall(p =>
+            !tokenJustBefore(p).hasBreak || p.pos.startColumn == col,
+          )
+        }
+      if (carrotKeep) Seq(Split(Space, 0).withIndent(
+        Indent(Length.StateColumn, getLast(params), ExpiresOn.After),
+      ))
+      else {
+        val spaceSplit =
+          if (cfg.newlines.forceAfterImplicitParamListModifier) Split.ignored
+          else Split(Space, 0).withPolicy(
+            SingleLineBlock(getLast(params)),
+            cfg.newlines.notPreferAfterImplicitParamListModifier,
+          )
+        Seq(spaceSplit, Split(Newline, if (spaceSplit.isActive) 1 else 0))
+      }
     }
   }
 }
@@ -3891,10 +3999,15 @@ object SplitsAfterOptionalBracesKeyword extends Splits {
       // the statement level.
       val inlineOk = cfg.indent.ctrlBodyIndentOnlyIfBroken &&
         cfg.newlines.keep && ft.noBreak &&
+        // CARROT fork: a trailing comment glued to the keyword with the body
+        // on the next line is NOT an inline body — the indent-carrying
+        // splits must survive or the body lands at the statement column
+        !(ft.right.is[T.Comment] &&
+          tokens.hasBreakAfterRightBeforeNonComment(ft)) &&
         ft.left.isAny[T.KwThen, T.KwElse] && splits.exists(!_.isNL)
       if (!inlineOk) splits
       else {
-        val miniEnd = fo.getSlbEndOnLeft(tokens.next(ft))
+        val miniEnd = fo.getEndOfSourceLine(ft)
         val spaceSplit = Split(Space, 0).withPolicy(SingleLineBlock(miniEnd))
           .withOptimalToken(miniEnd, killOnFail = true, recurseOnly = true)
         spaceSplit +: splits.filter(_.isNL)

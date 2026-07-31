@@ -143,6 +143,11 @@ case class ScalafmtConfig(
   private[scalafmt] lazy val alignOnlyIfCaseClassParam: Set[String] = align
     .tokens.filter(_.onlyIfCaseClassParam).map(_.code).toSet
 
+  // CARROT fork: codes of align tokens that only participate when their
+  // output line starts with the owner statement's first token.
+  private[scalafmt] lazy val alignOnlyIfOwnerStartsLine: Set[String] = align
+    .tokens.filter(_.onlyIfOwnerStartsLine).map(_.code).toSet
+
   def withDialect(nd: NamedDialect): ScalafmtConfig =
     copy(runner = runner.withDialect(nd))
 

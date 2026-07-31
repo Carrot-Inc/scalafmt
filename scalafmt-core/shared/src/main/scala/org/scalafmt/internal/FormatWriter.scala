@@ -457,6 +457,12 @@ class FormatWriter(formatOps: FormatOps) {
         if (entry.curr.isNotRemoved) f(entry)
       }
 
+    // CARROT fork: width added by spaces.preserveBefore on the current output
+    // line beyond what the aligner assumed; later aligner-managed stops on
+    // the same line absorb it from their padding so they still land at their
+    // intended columns.
+    private var carrotPreservedExtra = 0
+
     class Entry(val i: Int) {
       val curr = locations(i)
       private implicit val style: ScalafmtConfig = curr.style
@@ -512,6 +518,7 @@ class FormatWriter(formatOps: FormatOps) {
         def align = tokenAligns.get(i).fold(0)(_ + alignOffset) + delayedAlign
         mod match {
           case nl: NewlineT =>
+            carrotPreservedExtra = 0
             val extraBlanks =
               if (i == locations.length - 1) 0
               else extraBlankTokens.getOrElse(i, if (nl.isDouble) 1 else 0)
@@ -522,13 +529,22 @@ class FormatWriter(formatOps: FormatOps) {
             0
 
           case p: Provided =>
+            if (p.betweenText.contains('\n')) carrotPreservedExtra = 0
             sb.append(p.betweenText)
             0
 
           case NoSplit if style.align.delayUntilSpace => -align // delay
 
           case _ =>
-            val alignShift = align
+            // CARROT fork: aligner columns were computed without knowledge of
+            // preserved source gaps earlier on this line; absorb that extra
+            // width from this token's alignment padding so the stop still
+            // lands at its intended column.
+            val alignRaw = align
+            val absorbed =
+              if (alignRaw <= 0) 0 else math.min(carrotPreservedExtra, alignRaw)
+            carrotPreservedExtra -= absorbed
+            val alignShift = alignRaw - absorbed
             // CARROT fork: spaces.preserveBefore — keep the source's run of
             // 2+ spaces (hand alignment) before configured tokens instead of
             // normalizing to a single space. Only when the aligner is not
@@ -542,6 +558,7 @@ class FormatWriter(formatOps: FormatOps) {
                   style.spaces.isPreserveBefore(tok.meta.right.text)
               ) tok.right.start - tok.left.end
               else 0
+            if (preserved > width) carrotPreservedExtra += preserved - width
             sb.append(getIndentation(math.max(width, preserved)))
             alignShift
         }
@@ -1365,11 +1382,35 @@ class FormatWriter(formatOps: FormatOps) {
             else {
               val isSlc = ft.right.is[T.Comment] && locations(idx)
                 .hasBreakAfter && !ft.rightHasNewline
+              // CARROT fork: line-start test for onlyIfOwnerStartsLine —
+              // walk back to this output line's first location and compare
+              // its token with the owner statement's first token.
+              def ownerStartsLine(owner: Tree): Boolean = {
+                @tailrec
+                def lineStart(i: Int): Int =
+                  if (i <= 0) 0
+                  else {
+                    val p = locations(i - 1)
+                    if (p.hasBreakAfter || p.formatToken.leftHasNewline) i
+                    else lineStart(i - 1)
+                  }
+                @tailrec
+                def toStat(t: Tree): Tree = t match {
+                  case _: Stat => t
+                  case _ => t.parent match {
+                      case Some(p) => toStat(p)
+                      case None => t
+                    }
+                }
+                locations(lineStart(idx - 1)).formatToken.left eq
+                  getHead(toStat(owner)).left
+              }
               if (
                 shouldAlign(
                   ft,
                   isSlc,
                   clause => locations(getHead(clause).idx).hasBreakAfter,
+                  ownerStartsLine,
                 )
               ) {
                 val (container, depth) = getAlignContainer(isSlc)
@@ -2110,9 +2151,12 @@ object FormatWriter {
     if (useLeft) floc.state.prev.column else floc.state.column
   }
 
-  private def shouldAlign(ft: FT, slc: Boolean, clauseBroken: Tree => Boolean)(
-      implicit floc: FormatLocation,
-  ): Boolean = {
+  private def shouldAlign(
+      ft: FT,
+      slc: Boolean,
+      clauseBroken: Tree => Boolean,
+      ownerStartsLine: Tree => Boolean,
+  )(implicit floc: FormatLocation): Boolean = {
     val code = if (slc) "//" else ft.meta.right.text
     floc.style.alignMap.get(code).exists(matchers =>
       matchers.isEmpty || {
@@ -2132,6 +2176,11 @@ object FormatWriter {
         // so the gate is stable when the formatter itself creates the break.
         (!floc.style.alignOnlyIfClauseBroken.contains(code) ||
           owner.parent.exists(clauseBroken)) &&
+        // CARROT fork: onlyIfOwnerStartsLine — the output line must begin
+        // with the owner statement's first token; continuation lines (e.g.
+        // a multiline clause's dangling close paren) are never padded.
+        (!floc.style.alignOnlyIfOwnerStartsLine.contains(code) ||
+          ownerStartsLine(owner)) &&
         // CARROT fork: onlyIfCaseClassParam — owner must be a modifier-less
         // param of a case-class or enum-case primary ctor.
         (!floc.style.alignOnlyIfCaseClassParam.contains(code) || (owner match {

@@ -22,6 +22,11 @@ case class AlignToken(
     // a `case` class or enum-case primary constructor (plain fields); val/var
     // params and non-case classes are left alone.
     onlyIfCaseClassParam: Boolean = false,
+    // CARROT fork: when true, this token participates in alignment only when
+    // its output line begins with the owner statement's first token (e.g. an
+    // enum case's `case` keyword); continuation lines — like a multiline
+    // clause's dangling close paren — are never padded.
+    onlyIfOwnerStartsLine: Boolean = false,
 ) {
   def getMatcher: Seq[TreePattern.Matcher] = owners.distinct.map(_.getMatcher)
 }
