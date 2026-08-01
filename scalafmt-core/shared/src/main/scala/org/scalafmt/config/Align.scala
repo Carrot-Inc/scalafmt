@@ -93,6 +93,10 @@ case class Align(
     // across blank-line-separated groups (subsumes
     // enumeratorsAcrossBlankLines).
     acrossBlankLines: Boolean = false,
+    // CARROT fork: maximum padding (in spaces) alignment may insert into any
+    // row of a block; a row whose merge would exceed the cap starts its own
+    // block instead of dragging the others to an extreme column. 0 disables.
+    carrotMaxShift: Int = 0,
     // CARROT fork: when true, an alignment candidate on a continuation line
     // of a multiline member (e.g. the arrow of a multiline-pattern case)
     // still belongs to the enclosing container's alignment block.

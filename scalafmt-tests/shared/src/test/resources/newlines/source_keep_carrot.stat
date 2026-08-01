@@ -21,8 +21,8 @@ continuationIndent.defnSite = 2
 spaces.preserveBefore = ["->", "%", "%%", "//"]
 spaces.preserveAfter = ["%"]
 spaces.afterAccessModifier = true
-spaces.beforeContextBoundColon = IfMultipleBounds
 align.acrossBlankLines = true
+align.carrotMaxShift = 40
 align.multiline = true
 align.multilineMembers = true
 align.allowOverflow = true
@@ -569,7 +569,7 @@ object a:
 object a:
   def entityListScreen[
     T,
-    CAT <: EntityListCategory : {EnumMirror, Eq}
+    CAT <: EntityListCategory: {EnumMirror, Eq}
   ](printableName: String,
     handleNew: SHARED => LocationTask[Unit],
     permission: UserPermission
@@ -1017,10 +1017,9 @@ object a:
   )
 >>>
 object a:
-  def m = Map[String, String](
-    "pickup_options" -> settings.pickupOrderMethods.values
-      .filter(_.pickupOrderMethod.isCustomerEnabled)
-      .toList.intercalate(",")
+  def m = Map[String, String]("pickup_options" -> settings.pickupOrderMethods.values
+    .filter(_.pickupOrderMethod.isCustomerEnabled)
+    .toList.intercalate(",")
   )
 <<< carrot 22.3: leading operators at the chain-head column stay put
 object a:

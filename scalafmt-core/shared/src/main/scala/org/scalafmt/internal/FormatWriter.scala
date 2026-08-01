@@ -2105,7 +2105,25 @@ object FormatWriter {
         }
       }
 
-      def finalize(endRefIdx: Int): Boolean = newStops.nonEmpty &&
+      // CARROT fork: align.carrotMaxShift — reject a merge that would pad any
+      // row of the block more than the cap; the outlier row starts its own
+      // block instead of dragging every other row to an extreme column (and
+      // possibly past maxColumn, since allowOverflow skips those checks).
+      def carrotCapOk: Boolean = {
+        val cap = line.style.align.carrotMaxShift
+        cap <= 0 || {
+          def stopOk(bs: AlignStop): Boolean = {
+            val idx = newStops.indexWhere(_.shiftedColumn eq bs.shiftedColumn)
+            idx < 0 || !newStops(idx).isActive ||
+            newColumns(idx) - bs.column <= cap
+          }
+          newStops.indices.forall(idx =>
+            newColumns(idx) - newStops(idx).column <= cap,
+          ) && buffer.forall(_.stops.forall(stopOk))
+        }
+      }
+
+      def finalize(endRefIdx: Int): Boolean = newStops.nonEmpty && carrotCapOk &&
         (line.style.align.allowOverflow || // check overflow
           line.noOverflow(curShift) && buffer.forall(bl =>
             bl.style.align.allowOverflow ||
