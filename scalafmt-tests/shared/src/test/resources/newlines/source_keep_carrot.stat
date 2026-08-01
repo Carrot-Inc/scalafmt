@@ -1297,3 +1297,39 @@ object a:
     else show"""# Loyalty
                |* rewards
                |""".stripMargin
+<<< carrot 23.12: symbolic infix keeps its space before a multi-arg paren clause
+object a:
+  def render = div(
+    cls := (
+      "p-3 md:p-4",
+      "flex flex-col gap-3"
+    )
+  )
+>>>
+object a:
+  def render = div(
+    cls := (
+      "p-3 md:p-4",
+      "flex flex-col gap-3"
+    )
+  )
+<<< carrot 23.13: mid-line `= if` with a block then-branch keeps the flat statement indent
+object a:
+  def f =
+    val errScala = if !isNullOrUndefined(err.stack) then
+      val e = props.error.asInstanceOf[js.Dynamic]
+      Some(ErrorWithStack(
+        message = e.message.asInstanceOf[String]
+      ))
+    else None
+    errScala
+>>>
+object a:
+  def f =
+    val errScala = if !isNullOrUndefined(err.stack) then
+      val e = props.error.asInstanceOf[js.Dynamic]
+      Some(ErrorWithStack(
+        message = e.message.asInstanceOf[String]
+      ))
+    else None
+    errScala

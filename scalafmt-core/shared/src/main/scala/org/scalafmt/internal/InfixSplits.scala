@@ -356,14 +356,17 @@ class InfixSplits(
       newStmtMod: Modification = null,
       spaceMod0: Modification = Space,
   ): Seq[Split] = {
-    // CARROT fork: an infix operator's parenthesized multi-argument clause
-    // is glued to the operator (`url withQueryParam("id", v)`) — those
-    // parens are an argument list, not a precedence grouping.
+    // CARROT fork: an alphanumeric infix method's parenthesized multi-arg
+    // clause is glued to the method name (`url withQueryParam("id", v)`) —
+    // those parens are an argument list, not a precedence grouping.
+    // Symbolic operators (`cls := (...)`) keep their space.
     val spaceMod =
       if (
         style.carrotKeep && isAfterOp && ft.right.is[T.LeftParen] &&
         (app match {
-          case t: Term.ApplyInfix => t.argClause.values.lengthCompare(1) > 0 &&
+          case t: Term.ApplyInfix =>
+            Character.isLetterOrDigit(t.op.value.last) &&
+            t.argClause.values.lengthCompare(1) > 0 &&
             (ftoks.getHead(t.argClause).left eq ft.right)
           case _ => false
         })

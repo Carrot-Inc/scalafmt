@@ -1086,16 +1086,20 @@ class FormatOps(
           if (isKeep || ifWithoutElse(t) || hasStateColumn) {
             val slb = getSlbSplit(getExprBeg(t.thenp))
             // CARROT fork: under keep with the fork flag, a glued mid-line
-            // `= if` anchors its then/else break lines at the `if` keyword's
-            // column (upstream drops them to the statement indent, which
-            // lands `else` left of its own `if`).
+            // `= if` with an INLINE then-branch anchors its then/else break
+            // lines at the `if` keyword's column (upstream drops them to the
+            // statement indent, landing `else` left of its own `if`); a
+            // block then-branch (break after `then`) keeps the flat
+            // statement indent, matching the staircase-flatten style.
             getSplits(
-              if (style.carrotKeep && isKeep && spaceIndents.isEmpty) slb
-                .withIndent(Indent(
-                  Length.StateColumn,
-                  getLast(t),
-                  ExpiresOn.After,
-                ))
+              if (
+                style.carrotKeep && isKeep && spaceIndents.isEmpty &&
+                tokenBefore(t.thenp).noBreak
+              ) slb.withIndent(Indent(
+                Length.StateColumn,
+                getLast(t),
+                ExpiresOn.After,
+              ))
               else slb,
             )
           } else getSlbSplits()
