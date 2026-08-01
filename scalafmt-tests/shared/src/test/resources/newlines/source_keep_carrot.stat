@@ -1125,3 +1125,175 @@ object a:
             name
           ), Some(startDay), Some(endDay)) => Some(startDay)
     case _                                 => None
+<<< carrot 23.1: glued `{ x => for` head kept, glued `yield x }` close kept
+object a:
+  def dup = ids.flatMap { dealIds =>
+    dealIds.traverse { dealId => for
+      dupId <- SQL.duplicateDeal(spaceId, dealId, toPromotionId).withUniqueGeneratedKeys[DealId]("id")
+      _     <- SQL.duplicateBXGYDeal(spaceId, dealId, dupId).run
+    yield dupId }
+  }
+>>>
+object a:
+  def dup = ids.flatMap { dealIds =>
+    dealIds.traverse { dealId => for
+      dupId <- SQL.duplicateDeal(spaceId, dealId, toPromotionId).withUniqueGeneratedKeys[DealId]("id")
+      _     <- SQL.duplicateBXGYDeal(spaceId, dealId, dupId).run
+    yield dupId }
+  }
+<<< carrot 23.2: glued pf-head with trailing comment kept
+object a:
+  def f = xs
+    .traverse { case (delivery, customer) => // TODO: dedupe
+      AddressRepo
+        .getByCustomerAndAddressId(customer.id, delivery.payload.addressId)
+        .someOrFail(Right(OrderApiError.AddressNotFound))
+    }
+>>>
+object a:
+  def f = xs
+    .traverse { case (delivery, customer) => // TODO: dedupe
+      AddressRepo
+        .getByCustomerAndAddressId(customer.id, delivery.payload.addressId)
+        .someOrFail(Right(OrderApiError.AddressNotFound))
+    }
+<<< carrot 23.3: source break after open paren before a lambda argument kept
+object a:
+  def f = props.renderDropdownItem.getOrElse(
+    (item: Item[T], selected: Boolean) =>
+      defaultDropdownItem.withKey(props.extractKey(item.value))(mkProps(
+        item = item,
+        selected = selected
+      )): VdomNode
+  )(item)
+>>>
+object a:
+  def f = props.renderDropdownItem.getOrElse(
+    (item: Item[T], selected: Boolean) =>
+      defaultDropdownItem.withKey(props.extractKey(item.value))(mkProps(
+        item = item,
+        selected = selected
+      )): VdomNode
+  )(item)
+<<< carrot 23.4: source break after yield kept
+object a:
+  def f = for
+    token <- getToken(locationId)
+  yield
+    CustomerData(
+      token = token
+    )
+>>>
+object a:
+  def f = for
+    token <- getToken(locationId)
+  yield
+    CustomerData(
+      token = token
+    )
+<<< carrot 23.5: source break before enumerator `=` kept at source offset
+object a:
+  def f = for
+    transactions <- getTransactions(locationId)
+
+    allDates
+      = (transactions.keySet
+      ++ transactions.keySet
+      ).toList.sorted
+  yield allDates
+>>>
+object a:
+  def f = for
+    transactions <- getTransactions(locationId)
+
+    allDates
+      = (transactions.keySet
+      ++ transactions.keySet
+    ).toList.sorted
+  yield allDates
+<<< carrot 23.6: postfix match on its own line after blank kept
+object a:
+  def f =
+    other.map { x =>
+      (x, mkOptions(x))
+    }
+
+    match
+      case None    => fallback
+      case Some(r) => r
+>>>
+object a:
+  def f =
+    other.map { x =>
+      (x, mkOptions(x))
+    }
+
+    match
+      case None    => fallback
+      case Some(r) => r
+<<< carrot 23.7: glued using-head clause kept, continuations repaired under first param
+object a:
+  given[T1, T2](using kstT1: SettingType[T1],
+                ksT2: SettingType[T2]): SettingType[Map[T1, T2]] =
+    mk(kstT1, ksT2)
+>>>
+object a:
+  given [T1, T2](using kstT1: SettingType[T1],
+                       ksT2: SettingType[T2]): SettingType[Map[T1, T2]] =
+    mk(kstT1, ksT2)
+<<< carrot 23.8: else of a mid-line `= if` anchors at the if column
+object a:
+  def f = for
+    allLocations <- getLocations
+    filtered      = if authInfo.isStaffCustomer then allLocations
+                    else allLocations.filter(_.enabled.isCustomerEnabled)
+  yield filtered
+>>>
+object a:
+  def f = for
+    allLocations <- getLocations
+    filtered      = if authInfo.isStaffCustomer then allLocations
+                    else allLocations.filter(_.enabled.isCustomerEnabled)
+  yield filtered
+<<< carrot 23.9: infix multi-arg clause glued to the operator
+object a:
+  val reqUrl = apiUrl / "preauthTransaction" withQueryParam("id", preauthId.value)
+>>>
+object a:
+  val reqUrl = apiUrl / "preauthTransaction" withQueryParam("id", preauthId.value)
+<<< carrot 23.10: `then` glued after a multiline condition kept
+object a:
+  def f =
+    if promo.published.exists(p => p =!= Unpublished) then
+      Some("already published")
+    else if LocalDateUtils
+      .tryParseUSAShort(promo.originalStartDay)
+      .exists(startDay => startDay.isBefore(LocalDate.now().minusDays(1))) then
+      Some("start day cannot be before yesterday")
+    else
+      None
+>>>
+object a:
+  def f =
+    if promo.published.exists(p => p =!= Unpublished) then
+      Some("already published")
+    else if LocalDateUtils
+        .tryParseUSAShort(promo.originalStartDay)
+        .exists(startDay => startDay.isBefore(LocalDate.now().minusDays(1))) then
+      Some("start day cannot be before yesterday")
+    else
+      None
+<<< carrot 23.11: else glued to a multiline string literal body kept
+object a:
+  def f(loyalty: Boolean): String =
+    if !loyalty then "no program"
+    else show"""# Loyalty
+               |* rewards
+               |""".stripMargin
+>>>
+object a:
+  def f(loyalty: Boolean): String =
+    if !loyalty then "no program"
+    else show"""# Loyalty
+               |* rewards
+               |""".stripMargin

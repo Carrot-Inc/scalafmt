@@ -852,8 +852,15 @@ object OptionalBraces {
     def policy =
       if (split.isNL) decideNewlinesOnlyBeforeClose(kw)
       else decideNewlinesOnlyBeforeCloseOnBreak(kw)
-    split.withIndent(indent, kw, ExpiresOn.Before)
-      .andPolicy(if (style.danglingParentheses.ctrlSite) policy else null)
+    // CARROT fork: under keep with the fork flag, a ctrl keyword glued in
+    // source to the end of a multiline condition stays glued (upstream
+    // forces `then`/`do` onto its own line once the condition breaks).
+    val carrotGluedKw = style.carrotKeep && style.newlines.keep &&
+      prev(kw).noBreak
+    split.withIndent(indent, kw, ExpiresOn.Before).andPolicy(
+      if (style.danglingParentheses.ctrlSite && !carrotGluedKw) policy
+      else null,
+    )
   }
 
 }

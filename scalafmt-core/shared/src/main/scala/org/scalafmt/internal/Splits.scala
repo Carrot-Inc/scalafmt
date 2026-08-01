@@ -506,8 +506,13 @@ object SplitsAfterLeftBrace extends Splits {
         case null => (1, 0)
         case (shared, here) => (shared + here, shared + 1)
       }
+    // CARROT fork: under keep with the fork flag, a close brace glued in
+    // source to the end of a multiline body stays glued (upstream
+    // unconditionally dangles it); a source break before the close is still
+    // forced, via the policy, on any body made multiline by the search.
     val newlineBeforeClosingCurly =
-      decideNewlinesOnlyBeforeClose(Split(Newline, 0, rank = -1))(close)
+      if (cfg.carrotKeep && cfg.newlines.keep && prev(close).noBreak) NoPolicy
+      else decideNewlinesOnlyBeforeClose(Split(Newline, 0, rank = -1))(close)
     val nlPolicy = lambdaNLPolicy ==> newlineBeforeClosingCurly
     val nlSplit = Split(nl, nlCost, nlPolicy)
       .withIndent(cfg.indent.main, close, Before)
@@ -556,7 +561,16 @@ object SplitsAfterLeftBrace extends Splits {
         val nlPolicy = newlineBeforeClosingCurly
         var mod: Modification = null
         val policy =
-          if ((singleLineSplitOpt ne null) && singleLineSplit.isIgnored) {
+          if (
+            (singleLineSplitOpt ne null) && singleLineSplit.isIgnored &&
+            // CARROT fork: under keep with the fork flag, a glued `{ x =>`
+            // head with a multiline body must not have its arrow split
+            // replaced by a whole-body single-line block (the body's kept
+            // source breaks make it fail, forcing a break after the arrow);
+            // use the inline-body branch below instead.
+            !(cfg.carrotKeep && cfg.newlines.keep && lambdaExpire.noBreak &&
+              getEndOfSourceLine(ft).idx < close.idx)
+          ) {
             val arrSplit = singleLineSplitOpt.withMod(Space)
             val fnarrDesc = s"FNARR($nlArrowPenalty;$arrSplit)"
             mod = slbMod
@@ -2057,10 +2071,12 @@ object SplitsAfterLeftParenOrBracket {
     val carrotKeepNonConfig = (defnSite || tupleSite) && cfg.newlines.keep &&
       cfg.carrotKeep && noBreak &&
       beforeClose.left.pos.startLine > right.pos.startLine &&
-      (tupleSite || {
-        val col =
-          if (carrotImplicitHead && args.nonEmpty) args.head.pos.startColumn
-          else right.pos.startColumn
+      // CARROT fork: implicit/using-headed clauses skip the column check —
+      // a glued head is kept and continuation params are REPAIRED to the
+      // first param's column by the SplitsAfterImplicit StateColumn anchor
+      // (converting them to config style reads worse than realigning).
+      (tupleSite || carrotImplicitHead || {
+        val col = right.pos.startColumn
         args.forall(arg =>
           !tokenJustBefore(arg).hasBreak || arg.pos.startColumn == col,
         )
@@ -2102,6 +2118,23 @@ object SplitsAfterLeftParenOrBracket {
     val carrotPatternSite = !defnSite && !tupleSite &&
       cfg.newlines.keep && cfg.carrotKeep &&
       leftOwner.parent.is[Pat]
+    // CARROT fork: the >maxColumn overflow trigger fires only for the
+    // OUTERMOST inline call clause of the line — once that one wraps, the
+    // nested clauses land on fitting lines of their own; letting every
+    // nested clause trigger at once shatters the statement token-per-line.
+    def carrotNestedInSameLineCall: Boolean = {
+      val line = right.pos.startLine
+      @tailrec
+      def iter(t: Tree): Boolean = t.parent match {
+        case Some(p: Term.ArgClause)
+            if p.parent.isAny[Term.Apply, Init] &&
+              getHead(p).left.is[T.LeftParen] &&
+              getHead(p).left.pos.startLine == line => true
+        case Some(p) => iter(p)
+        case None => false
+      }
+      iter(leftOwner)
+    }
     val carrotCallConfigStyle = !defnSite && !tupleSite && !isBracket &&
       !carrotPatternSite &&
       cfg.newlines.keep && cfg.carrotKeep &&
@@ -2115,7 +2148,7 @@ object SplitsAfterLeftParenOrBracket {
         // config style in ONE pass, or the next pass would read the wrap's
         // breaks as the trigger (not idempotent)
         noBreak && right.pos.startLine == close.left.pos.startLine &&
-        carrotIntrinsicEnd > cfg.maxColumn)
+        carrotIntrinsicEnd > cfg.maxColumn && !carrotNestedInSameLineCall)
     // CARROT fork: the single-arg glued-open dangled-close call shape stays
     // as-source; it must not be re-read as config style via the heuristic
     // preserveConfigStyle path either.
@@ -2599,8 +2632,14 @@ object SplitsAfterLeftParen extends Splits {
         cfg.indent.callSite
       else cfg.indent.getBinPackCallSite
 
-    if (noSplitMod == null)
-      Seq(Split(Newline, 0, newlinePolicy).withIndent(indentLen, close, Before))
+    if (
+      noSplitMod == null ||
+      // CARROT fork: under keep with the fork flag, a source break after the
+      // open paren before a lambda argument is kept (upstream offers the
+      // glue at cost 0 and the break at a penalty, joining hand-broken
+      // heads).
+      cfg.carrotKeep && cfg.newlines.keep && ft.hasBreak
+    ) Seq(Split(Newline, 0, newlinePolicy).withIndent(indentLen, close, Before))
     else {
       val newlinePenalty = 3 + nestedApplies(leftOwner)
       val noMultiline = beforeParenLambdaParams eq
@@ -2652,7 +2691,12 @@ object SplitsBeforeMatch extends Splits {
   ): Seq[Split] = {
     // do not split `.match`
     val noSplit = ft.left.is[T.Dot] && fo.dialect.allowMatchAsOperator
-    Seq(Split(Space(!noSplit), 0))
+    // CARROT fork: under keep with the fork flag, a source break before a
+    // postfix `match` is kept (hand style may put `match` on its own line
+    // after the scrutinee block; upstream unconditionally glues).
+    if (!noSplit && cfg.carrotKeep && cfg.newlines.keep && ft.hasBreak)
+      Seq(Split(Newline2x.orMod(ft.hasBlankLine, Newline), 0))
+    else Seq(Split(Space(!noSplit), 0))
   }
 }
 
@@ -3975,7 +4019,11 @@ object SplitsAfterYield extends Splits {
         }
         if (avoidAfterYield) {
           val noIndent = !isRightCommentWithBreak(ft)
-          Seq(Split(Space, 0).withIndent(indent, noIndent))
+          // CARROT fork: under keep with the fork flag, a source break after
+          // `yield` is kept (upstream unconditionally joins the body head).
+          if (cfg.carrotKeep && cfg.newlines.keep && hasBreak)
+            Seq(Split(Newline, 0).withIndent(indent))
+          else Seq(Split(Space, 0).withIndent(indent, noIndent))
         } else Seq(
           // Either everything fits in one line or break on =>
           Split(cfg.newlines.keepBreak, 0)(Space).withSingleLine(lastToken),
@@ -4085,14 +4133,12 @@ object SplitsAfterImplicit extends Splits {
       // column. Mirrors the getNoBinPack as-source carve-out, which opens no
       // indent region of its own for this shape.
       val vals = params.values
+      // CARROT fork: no column requirement on the continuation params — a
+      // glued head is kept and off-column continuations are repaired to the
+      // first param's column by the StateColumn anchor below.
       val carrotKeep = cfg.newlines.keep &&
-        cfg.carrotKeep && noBreak && vals.nonEmpty && {
-          val col = vals.head.pos.startColumn
-          getLast(params).left.pos.startLine > right.pos.startLine &&
-          vals.forall(p =>
-            !tokenJustBefore(p).hasBreak || p.pos.startColumn == col,
-          )
-        }
+        cfg.carrotKeep && noBreak && vals.nonEmpty &&
+        getLast(params).left.pos.startLine > right.pos.startLine
       if (carrotKeep) Seq(Split(Space, 0).withIndent(
         Indent(Length.StateColumn, getLast(params), ExpiresOn.After),
       ))
@@ -4236,7 +4282,7 @@ object SplitsBeforeEquals extends Splits {
     // kept, and the `=` line keeps its source column offset relative to the
     // statement (carried in the split indent so state and writer agree).
     rightOwner match {
-      case t @ (_: Defn | _: Term.Assign)
+      case t @ (_: Defn | _: Term.Assign | _: Enumerator.Val)
           if cfg.indent.preserveAssignIndent && cfg.newlines.keep &&
             hasBreak && !left.is[T.Comment] =>
         val offset = right.pos.startColumn - t.pos.startColumn

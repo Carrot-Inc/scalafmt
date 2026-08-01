@@ -61,7 +61,13 @@ class FormatOps(
   // there and the policy cannot conflict with them.
   @tailrec
   final def getEndOfSourceLine(start: FT): FT =
-    if (start.hasBreak || start.right.isAny[T.EOF, T.Comment]) start
+    // a multiline token (e.g. a triple-quoted literal) ends the line as far
+    // as single-line blocks are concerned — walking past it would build a
+    // block that always dies on the token's own newlines
+    if (
+      start.hasBreak || start.right.isAny[T.EOF, T.Comment] ||
+      start.rightHasNewline
+    ) start
     else getEndOfSourceLine(tokens.next(start))
 
   @tailrec
@@ -378,7 +384,7 @@ class FormatOps(
         case _ => true
       }
       if (ok) InfixSplits(app, ft, fullInfix)
-        .getBeforeLhsOrRhs(afterInfix, spaceMod = spaceMod)
+        .getBeforeLhsOrRhs(afterInfix, spaceMod0 = spaceMod)
       else spaceSplits
     }
 
@@ -1077,9 +1083,22 @@ class FormatOps(
       }
       val (spaceSplit, nlSplit) = adjustedBody match {
         case t: Term.If =>
-          if (isKeep || ifWithoutElse(t) || hasStateColumn)
-            getSplits(getSlbSplit(getExprBeg(t.thenp)))
-          else getSlbSplits()
+          if (isKeep || ifWithoutElse(t) || hasStateColumn) {
+            val slb = getSlbSplit(getExprBeg(t.thenp))
+            // CARROT fork: under keep with the fork flag, a glued mid-line
+            // `= if` anchors its then/else break lines at the `if` keyword's
+            // column (upstream drops them to the statement indent, which
+            // lands `else` left of its own `if`).
+            getSplits(
+              if (style.carrotKeep && isKeep && spaceIndents.isEmpty) slb
+                .withIndent(Indent(
+                  Length.StateColumn,
+                  getLast(t),
+                  ExpiresOn.After,
+                ))
+              else slb,
+            )
+          } else getSlbSplits()
         case t: Term.TryClause =>
           if (hasStateColumn) getSplits(getSpaceSplit(1))
           else if (isKeep) getSplits(getSlbSplit(getExprBeg(t.expr)))
@@ -1196,15 +1215,23 @@ class FormatOps(
 
     def checkComment(
         nlSplitFunc: Int => Split,
-    )(splitsFunc: FT => Seq[Split])(implicit ft: FT): Seq[Split] =
+    )(splitsFunc: FT => Seq[Split])(implicit
+        style: ScalafmtConfig,
+        ft: FT,
+    ): Seq[Split] =
       if (!ft.right.is[T.Comment] && !ft.hasBlankLine) splitsFunc(ft)
       else if (ft.hasBreak) Seq(nlSplitFunc(0).forThisLine)
       else {
         val nextFt = nextNonCommentSameLineAfter(ft)
         val nlPolicy = decideNewlinesOnlyAfterClose(nextFt)
-        if (nextFt.hasBreakOrEOF)
-          Seq(nlSplitFunc(1).forThisLine.withMod(Space).andPolicy(nlPolicy))
-        else splitsFunc(nextFt)
+        if (nextFt.hasBreakOrEOF) {
+          // CARROT fork: under keep with the fork flag, a trailing comment
+          // glued to the token with the body on the next source line is the
+          // source-mandated (and only) layout offered here — charge 0 so
+          // parent optimal runs across this token don't die on the cost.
+          val cost = if (style.carrotKeep && style.newlines.keep) 0 else 1
+          Seq(nlSplitFunc(cost).forThisLine.withMod(Space).andPolicy(nlPolicy))
+        } else splitsFunc(nextFt)
           .map(s => s.withMod(Space).andPolicy(if (s.isNL) nlPolicy else null))
       }
 

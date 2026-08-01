@@ -354,8 +354,21 @@ class InfixSplits(
   def getBeforeLhsOrRhs(
       afterInfix: Newlines.Infix.Site,
       newStmtMod: Modification = null,
-      spaceMod: Modification = Space,
+      spaceMod0: Modification = Space,
   ): Seq[Split] = {
+    // CARROT fork: an infix operator's parenthesized multi-argument clause
+    // is glued to the operator (`url withQueryParam("id", v)`) — those
+    // parens are an argument list, not a precedence grouping.
+    val spaceMod =
+      if (
+        style.carrotKeep && isAfterOp && ft.right.is[T.LeftParen] &&
+        (app match {
+          case t: Term.ApplyInfix => t.argClause.values.lengthCompare(1) > 0 &&
+            (ftoks.getHead(t.argClause).left eq ft.right)
+          case _ => false
+        })
+      ) NoSplit
+      else spaceMod0
     def getOpenClose(xft: FT): (FT, FT) = // exclude Xml.Start and similar pairs
       if (!xft.right.is[T.OpenDelim]) null
       else ftoks.matchingRightOrNull(xft).nnMap(xft -> _)
