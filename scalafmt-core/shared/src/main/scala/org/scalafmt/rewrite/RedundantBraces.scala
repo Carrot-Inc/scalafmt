@@ -563,11 +563,14 @@ class RedundantBraces(implicit val ftoks: FormatTokens)
   // survive — stripping the braces would let the body rejoin the arrow line.
   private def carrotArrowBreak(
       t: Term.FunctionLike,
-  )(implicit style: ScalafmtConfig): Boolean = style.carrotKeep && style.newlines.keep &&
-    (t match {
-      case f: Member.Function => getFuncArrow(f).nnHas(_.hasBreak)
-      case _ => ftoks.tokenBefore(t.body).hasBreak
-    })
+  )(implicit style: ScalafmtConfig): Boolean = style.carrotKeep &&
+    style.newlines.keep &&
+    // no match here: Scala 3 proves Term.FunctionLike <:< Member.Function
+    // and rejects a fallback arm as unreachable; keep the branch anyway in
+    // case a future scalameta widens the hierarchy
+    (if (t.is[Member.Function]) getFuncArrow(t.asInstanceOf[Member.Function])
+       .nnHas(_.hasBreak)
+     else ftoks.tokenBefore(t.body).hasBreak)
 
   private def okToRemoveFunctionInApplyOrInit(
       t: Term.FunctionLike,
