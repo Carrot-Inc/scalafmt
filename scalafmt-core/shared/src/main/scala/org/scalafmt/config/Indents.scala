@@ -41,13 +41,6 @@ case class Indents(
     private[config] val defnSite: Int = 4,
     binPackDefnSite: Option[Int] = None,
     caseSite: Int = 4,
-    // CARROT fork: when true, control-structure body indents (case-arrow,
-    // then/else) are attached only to splits that break after the keyword;
-    // a body starting on the keyword line anchors its continuation lines
-    // (e.g. select chains) at the statement level, like `=` bodies, instead
-    // of stacking the body indent. Under newlines.source=keep this also lets
-    // a multiline then/else body start on the keyword line.
-    ctrlBodyIndentOnlyIfBroken: Boolean = false,
     // CARROT fork: under newlines.source=keep, a leading `|` continuation
     // line in a multiline case pattern keeps its source column offset
     // relative to the `case` keyword instead of the fixed caseSite indent.

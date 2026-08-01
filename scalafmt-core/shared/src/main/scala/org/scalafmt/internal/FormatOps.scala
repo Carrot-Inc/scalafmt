@@ -1114,11 +1114,11 @@ class FormatOps(
           else if (isBodyEnclosedAsBlock(ia))
             if (isKeep) getPolicySplits(0, Policy.NoPolicy)
             else getSplits(getSlbSplit(getLast(lia.lhs)))
-          // CARROT fork: under keep (with ctrlBodyIndentOnlyIfBroken), let a
+          // CARROT fork: under keep (with carrotKeep), let a
           // bare-headed infix body start on the `=` line — the upstream SLB
           // through the first operator always fails on the kept break before
           // the operator, forcing the head off the line.
-          else if (isKeep && style.indent.ctrlBodyIndentOnlyIfBroken)
+          else if (isKeep && style.carrotKeep)
             getPolicySplits(0, Policy.NoPolicy)
           else getSplits(getSlbSplit(getLast(lia.op)))
         case b =>

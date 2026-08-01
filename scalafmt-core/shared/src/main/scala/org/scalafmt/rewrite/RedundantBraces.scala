@@ -563,8 +563,7 @@ class RedundantBraces(implicit val ftoks: FormatTokens)
   // survive — stripping the braces would let the body rejoin the arrow line.
   private def carrotArrowBreak(
       t: Term.FunctionLike,
-  )(implicit style: ScalafmtConfig): Boolean = style.indent
-    .ctrlBodyIndentOnlyIfBroken && style.newlines.keep &&
+  )(implicit style: ScalafmtConfig): Boolean = style.carrotKeep && style.newlines.keep &&
     (t match {
       case f: Member.Function => getFuncArrow(f).nnHas(_.hasBreak)
       case _ => ftoks.tokenBefore(t.body).hasBreak
@@ -634,8 +633,7 @@ class RedundantBraces(implicit val ftoks: FormatTokens)
   // dedented line (the braceless region cannot absorb it); keep the braces.
   private def carrotBraceStrandsComma(
       b: Term,
-  )(implicit style: ScalafmtConfig): Boolean = style.indent
-    .ctrlBodyIndentOnlyIfBroken && style.newlines.keep &&
+  )(implicit style: ScalafmtConfig): Boolean = style.carrotKeep && style.newlines.keep &&
     (getTreeSingleStat(b) eq null) &&
     ftoks.nextNonComment(ftoks.getLast(b)).right.is[T.Comma]
 

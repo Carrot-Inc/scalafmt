@@ -120,7 +120,7 @@ object OptionalBraces {
       // the apply, a separator comma by the clause.
       val couldBeTucked = close.right.is[T.CloseDelim] &&
         close.rightOwner.is[Member.SyntaxValuesClause] ||
-        style.indent.ctrlBodyIndentOnlyIfBroken && style.newlines.keep &&
+        style.carrotKeep && style.newlines.keep &&
         close.right.is[T.Comma]
       if (!couldBeTucked) decideNewlinesOnlyAfterClose(close)
       else decideNewlinesOnlyAfterToken(rank = 1, ifAny = true)(close)

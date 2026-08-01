@@ -116,6 +116,18 @@ case class ScalafmtConfig(
     rewrite: RewriteSettings = RewriteSettings.default,
     newlines: Newlines = Newlines(),
     runner: RunnerSettings = RunnerSettings.default,
+    // CARROT fork: umbrella flag for the Carrot keep-mode semantics —
+    // source-driven layout under newlines.source=keep. Gates (among others):
+    // ctrl-body indents attached only to broken splits with statement-level
+    // anchoring of inline bodies (case-arrow, then/else, lambda); keep-break
+    // before any close paren; source-driven config-style detection at defn
+    // sites and rule-B normalization at call sites; as-source tuples and
+    // pattern clauses; glued implicit/case-head/lambda-body/else
+    // preservation; kept breaks after `=`/infix operators and before
+    // arrows/block args; no stranded commas; wildcard-bind `@` spacing;
+    // enum-extends anchoring. See the FORK notes; requires
+    // newlines.source=keep for nearly all behaviors.
+    carrotKeep: Boolean = false,
     assumeStandardLibraryStripMargin: Boolean = false,
     danglingParentheses: DanglingParentheses = DanglingParentheses.default,
     verticalMultiline: VerticalMultiline = VerticalMultiline(),

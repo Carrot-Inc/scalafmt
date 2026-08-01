@@ -30,7 +30,7 @@ align.tokenCategory."Equals" = "Assign"
 align.tokenCategory."LeftArrow" = "Assign"
 align.tokens."+" = [{ code = "<-" }, { code = "=", owners = [{ regex = "Enumerator\\.Val" }] }, { code = ":", owners = [{ regex = "Term\\.Param", parents = ["Ctor\\.Primary"] }], onlyIfClauseBroken = true, onlyIfCaseClassParam = true }, { code = "extends", owners = [{ regex = "Defn\\.EnumCase" }], onlyIfOwnerStartsLine = true }]
 trailingCommas = keep
-indent.ctrlBodyIndentOnlyIfBroken = true
+carrotKeep = true
 indent.preservePatAltIndent = true
 indent.preserveParamClauseIndent = true
 indent.preserveAssignIndent = true

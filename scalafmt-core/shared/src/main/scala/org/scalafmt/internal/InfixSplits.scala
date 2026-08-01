@@ -432,7 +432,7 @@ class InfixSplits(
 
     // CARROT fork: under keep with the fork flag, a source break after the
     // `=`/operator is kept — space splits must not rejoin it.
-    val carrotKeepBreak = style.indent.ctrlBodyIndentOnlyIfBroken &&
+    val carrotKeepBreak = style.carrotKeep &&
       style.newlines.keep && ft.hasBreak && (newStmtMod eq null) &&
       !ft.right.is[T.Comment]
     // CARROT fork: end of ft's source line (stop before comments) — the span
@@ -504,7 +504,7 @@ class InfixSplits(
         // lines stays glued — single-line only through the operator's source
         // line; the chain's own breaks are kept by their own rules.
         else if (
-          style.indent.ctrlBodyIndentOnlyIfBroken && style.newlines.keep &&
+          style.carrotKeep && style.newlines.keep &&
           isAfterOp && (newStmtMod eq null) && ft.noBreak && {
             val eol = carrotEndOfLine
             eol.idx < fullExpire.idx &&
@@ -555,11 +555,11 @@ class InfixSplits(
       val endOfNextOp = if (afterInfix.breakOnNested) getNextOp else null
 
       val slbPolicy = InfixSplits.getSingleLineInfixPolicy(closeFt)
-      // CARROT fork: under keep (with ctrlBodyIndentOnlyIfBroken), an infix
+      // CARROT fork: under keep (with carrotKeep), an infix
       // rhs in parens glued to the operator in the source stays glued even
       // when it spans lines (upstream only offers whole-rhs-single-line or a
       // break after the operator).
-      val carrotGlue = style.indent.ctrlBodyIndentOnlyIfBroken &&
+      val carrotGlue = style.carrotKeep &&
         style.newlines.keep && ft.noBreak && !bracesLike && !noSingleLine
       val nlSplit = Split(nlMod, if (carrotGlue) 1 else 0, nlPolicy)
         .withIndent(nlIndent).andPolicy(
