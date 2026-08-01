@@ -16,6 +16,7 @@ newlines.configStyle.callSite {
   preferBreakBeforeClose = true
 }
 align.openParenDefnSite = true
+align.closeParenSite = true
 continuationIndent.defnSite = 2
 spaces.preserveBefore = ["->", "%", "%%", "//"]
 spaces.preserveAfter = ["%"]
@@ -572,7 +573,7 @@ object a:
   ](printableName: String,
     handleNew: SHARED => LocationTask[Unit],
     permission: UserPermission
-  ): Unit =
+   ): Unit =
     body
 <<< carrot 17.1: multiline enum-case params get the type column
 object a:
@@ -998,3 +999,130 @@ object a:
     else
       TagMod("Route"),
   )
+<<< carrot 22.1: break after defn = kept for paren-headed infix chain
+object a:
+  def logOut =
+    (IntercomMobileClient.logout *> authorized.set(false))
+      .whenZIODiscard(authorized.get)
+>>>
+object a:
+  def logOut =
+    (IntercomMobileClient.logout *> authorized.set(false))
+      .whenZIODiscard(authorized.get)
+<<< carrot 22.2: multiline chain glued after infix op stays glued
+object a:
+  def m = Map[String, String]("pickup_options" -> settings.pickupOrderMethods.values
+    .filter(_.pickupOrderMethod.isCustomerEnabled)
+    .toList.intercalate(",")
+  )
+>>>
+object a:
+  def m = Map[String, String](
+    "pickup_options" -> settings.pickupOrderMethods.values
+      .filter(_.pickupOrderMethod.isCustomerEnabled)
+      .toList.intercalate(",")
+  )
+<<< carrot 22.3: leading operators at the chain-head column stay put
+object a:
+  def blocks =
+    contentErrors.exists(error => !submitOnlyErrors.contains(error))
+    || (touched(Field.TestEmail) && testEmail.trim.nonEmpty)
+    || imageUploadBlockingError
+>>>
+object a:
+  def blocks =
+    contentErrors.exists(error => !submitOnlyErrors.contains(error))
+    || (touched(Field.TestEmail) && testEmail.trim.nonEmpty)
+    || imageUploadBlockingError
+<<< carrot 22.4: leading-arrow case and lambda style kept at owner+2
+object a:
+  def actions(l: Payload, r: Payload) = (l, r) match
+    case (l: Payload.Delivery, r: Payload.Delivery)
+      => addChangesWhen(l.deliveryDate =!= r.deliveryDate)(DateChanged)
+
+  val isThisProduct = (info: SlugProductInfo)
+    => info.posConnectionId === posConnectionId
+>>>
+object a:
+  def actions(l: Payload, r: Payload) = (l, r) match
+    case (l: Payload.Delivery, r: Payload.Delivery)
+      => addChangesWhen(l.deliveryDate =!= r.deliveryDate)(DateChanged)
+
+  val isThisProduct = (info: SlugProductInfo)
+    => info.posConnectionId === posConnectionId
+<<< carrot 22.5: block argument opening on its own line stays there
+object a:
+  def render = div(
+    label("Time Zone"),
+    {
+      val items = companyLocations.distinctBy(_.timeZoneId)
+      dropdown(items)
+    },
+  )
+>>>
+object a:
+  def render = div(
+    label("Time Zone"),
+    {
+      val items = companyLocations.distinctBy(_.timeZoneId)
+      dropdown(items)
+    },
+  )
+<<< carrot 22.6: lambda braces with broken arrow kept; inline lambda still parens
+object a:
+  val fn = props.disabledBefore
+    .map { disabledBefore =>
+      (date: js.Date) => date.getTime() < disabledBefore.getTime()
+    }
+  val inline = xs.map { x => x + 1 }
+>>>
+object a:
+  val fn = props.disabledBefore
+    .map { disabledBefore =>
+      (date: js.Date) => date.getTime() < disabledBefore.getTime()
+    }
+  val inline = xs.map(x => x + 1)
+<<< carrot 22.7: source break between call arg clauses kept at stmt offset
+object a:
+  def render = div(
+    onCheckboxToggle = props.setDraftL(GenLens[BlastDraft](_.target.lastShoppedEnabled))
+      (!props.draft.target.lastShoppedEnabled),
+  )
+>>>
+object a:
+  def render = div(
+    onCheckboxToggle = props.setDraftL(GenLens[BlastDraft](_.target.lastShoppedEnabled))
+      (!props.draft.target.lastShoppedEnabled),
+  )
+<<< carrot 22.8: enum extends-call args at case+2, close at the case column
+enum AutomationCategory(val key: String, val name: String):
+  case All    extends AutomationCategory(
+    "all",
+    "All"
+  )
+  case Missions extends AutomationCategory("missions", "Missions")
+>>>
+enum AutomationCategory(val key: String, val name: String):
+  case All      extends AutomationCategory(
+    "all",
+    "All"
+  )
+  case Missions extends AutomationCategory("missions", "Missions")
+<<< carrot 22.9: pattern clauses as-source: breaks kept, close glue kept
+object a:
+  def parse(draft: Draft) = draft match
+    case (PromotionDraft(
+      deduplicationId,
+      _,
+      name
+      ), Some(startDay), Some(endDay)) => Some(startDay)
+    case _ => None
+>>>
+object a:
+  def parse(draft: Draft) = draft match
+    case (PromotionDraft(
+            deduplicationId,
+            _,
+            name
+          ), Some(startDay), Some(endDay)) => Some(startDay)
+    case _                                 => None

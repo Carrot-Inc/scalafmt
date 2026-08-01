@@ -385,19 +385,26 @@ class RedundantBraces(implicit val ftoks: FormatTokens)
             val head = ftoks.getHead(p)
             def useParens = settings.oneStatApply
               .changeDelim(head, ftoks.getLast(p)) eq T.LeftParen
+            // CARROT fork: a lambda with a deliberate source break after its
+            // arrow keeps its braces — the paren form would rejoin the body.
+            def carrotKeepLambdaBraces = getTreeSingleStat(t) match {
+              case f: Term.FunctionLike => carrotArrowBreak(f)
+              case _ => false
+            }
             if (head.left ne ft.right) { // it was a left paren
               val keepBrace = session.claimedRuleOnLeft(head)
-                .nnHas(_.isRemove) || !useParens && !okLineSpan(t)
+                .nnHas(_.isRemove) || !useParens && !okLineSpan(t) ||
+                carrotKeepLambdaBraces
               if (keepBrace) null else removeToken
             } else // arg clause is this block
-            if (useParens) replaceTokenBy("(", p)(x =>
+            if (useParens && !carrotKeepLambdaBraces) replaceTokenBy("(", p)(x =>
               new T.LeftParen(x.input, x.dialect, x.start),
             )
             else null
           case Some(f: Term.FunctionLike)
               if getBlockToReplaceAsFuncBodyIfInSingleArgApply(f).nnHas {
                 case (_, xft) => xft.idx <= ft.idx + 1
-              } => removeToken
+              } && !carrotArrowBreak(f) => removeToken
           case Some(_: Term.Interpolate) => handleInterpolation
           case Some(_: Term.Xml) => null
           case Some(_: Term.Annotate) => null
@@ -552,6 +559,17 @@ class RedundantBraces(implicit val ftoks: FormatTokens)
   // a(b => { c }, d => { e }) change to a(b => c, d => e)
   // a single-stat lambda with braces can be converted to one without braces,
   // but the reverse conversion isn't always possible
+  // CARROT fork: a deliberate source break after the lambda arrow must
+  // survive — stripping the braces would let the body rejoin the arrow line.
+  private def carrotArrowBreak(
+      t: Term.FunctionLike,
+  )(implicit style: ScalafmtConfig): Boolean = style.indent
+    .ctrlBodyIndentOnlyIfBroken && style.newlines.keep &&
+    (t match {
+      case f: Member.Function => getFuncArrow(f).nnHas(_.hasBreak)
+      case _ => ftoks.tokenBefore(t.body).hasBreak
+    })
+
   private def okToRemoveFunctionInApplyOrInit(
       t: Term.FunctionLike,
   )(implicit style: ScalafmtConfig): Boolean = (t.parent match {
@@ -562,7 +580,7 @@ class RedundantBraces(implicit val ftoks: FormatTokens)
         case _ => false
       }
     case _ => false
-  }) && !carrotBraceStrandsComma(t.body)
+  }) && !carrotBraceStrandsComma(t.body) && !carrotArrowBreak(t)
 
   private def processBlock(b: Term.Block)(implicit
       ft: FT,

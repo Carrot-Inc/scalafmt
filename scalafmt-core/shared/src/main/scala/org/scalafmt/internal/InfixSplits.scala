@@ -298,7 +298,9 @@ class InfixSplits(
           if (headFt.hasBreak) headFt.right.pos.startColumn
           else p.pos.startColumn
         val offset = op.pos.startColumn - anchorCol
-        if (offset > 0 && ftoks.tokenJustBefore(op).hasBreak) offset
+        // offset 0 is legitimate: hand style may align operators at the
+        // chain head's own column
+        if (offset >= 0 && ftoks.tokenJustBefore(op).hasBreak) offset
         else default
       case _ => default
     }
@@ -428,6 +430,21 @@ class InfixSplits(
     val nlMod = newStmtMod ?? Space.orNL(ft.noBreak && ft.right.is[T.Comment])
     val delayedBreak = Policy ? nlMod.isNL || breakAfterComment(ft)
 
+    // CARROT fork: under keep with the fork flag, a source break after the
+    // `=`/operator is kept — space splits must not rejoin it.
+    val carrotKeepBreak = style.indent.ctrlBodyIndentOnlyIfBroken &&
+      style.newlines.keep && ft.hasBreak && (newStmtMod eq null) &&
+      !ft.right.is[T.Comment]
+    // CARROT fork: end of ft's source line (stop before comments) — the span
+    // the source glued to the operator.
+    def carrotEndOfLine: FT = {
+      @tailrec
+      def iter(x: FT): FT =
+        if (x.hasBreak || x.right.isAny[T.EOF, T.Comment]) x
+        else iter(ftoks.next(x))
+      iter(ft)
+    }
+
     val isFirstOrAssignOp = isFirstOp || isAssignmentOp
     val singleLineExpire = if (isFirstOrAssignOp) fullExpire else firstExpire
     def singleLineIndent =
@@ -442,7 +459,8 @@ class InfixSplits(
         singleLineExpire,
         ignorePenalty = isAssignmentOp && nextInfixes.nonEmpty,
       ).andPolicy(singleLinePolicy).andPolicy(delayedBreak)
-    val spaceSingleLine = Split(spaceMod, 0).onlyIf(newStmtMod eq null)
+    val spaceSingleLine = Split(spaceMod, 0)
+      .onlyIf((newStmtMod eq null) && !carrotKeepBreak)
       .withSingleLine(singleLineExpire).andPolicy(singleLinePolicy)
     val singleLineSplits = Seq(
       spaceSingleLine.onlyFor(SplitTag.InfixChainNoNL),
@@ -480,7 +498,28 @@ class InfixSplits(
       val nlSplit = Split(nlMod, nlCost).withIndent(nlIndent)
         .withPolicy(nlPolicy & delayedBreak)
       val spaceSplits: Seq[Split] =
-        if (ft.right.is[T.Comment] || mustBreakAfterNested) Seq.empty
+        if (ft.right.is[T.Comment] || mustBreakAfterNested || carrotKeepBreak)
+          Seq.empty
+        // CARROT fork: an rhs glued to the operator whose chain spans source
+        // lines stays glued — single-line only through the operator's source
+        // line; the chain's own breaks are kept by their own rules.
+        else if (
+          style.indent.ctrlBodyIndentOnlyIfBroken && style.newlines.keep &&
+          isAfterOp && (newStmtMod eq null) && ft.noBreak && {
+            val eol = carrotEndOfLine
+            eol.idx < fullExpire.idx &&
+            // only when the break is INSIDE this rhs, not merely after the
+            // enclosing expression
+            eol.idx >= ft.idx
+          }
+        ) Seq(
+          Split(spaceMod, 0).withPolicy(PolicyOps.SingleLineBlock(carrotEndOfLine))
+            .withOptimalToken(
+              carrotEndOfLine,
+              killOnFail = true,
+              recurseOnly = true,
+            ),
+        )
         else {
           val nextFT = if (rightAsInfix ne null) ftoks.next(ft) else ft
           expires.map { case (expire, precedence) =>
@@ -527,11 +566,13 @@ class InfixSplits(
           if (bracesLike) slbPolicy | PolicyOps.SingleLineBlock(closeFt)
           else null,
         ).withOptimalToken(closeFt, killOnFail = false, ignore = !bracesLike)
-      val singleLineSplit = Split(noSingleLine, 0)(spaceMod)
+      // CARROT fork: a kept source break must not be rejoined by the space
+      // splits (carrotKeepBreak)
+      val singleLineSplit = Split(noSingleLine || carrotKeepBreak, 0)(spaceMod)
         .withSingleLine(endOfNextOp ?? closeFt).andPolicy(slbPolicy)
       val noSplit =
         if (carrotGlue) Split(spaceMod, 0)
-        else Split(!bracesLike, 1)(spaceMod)
+        else Split(!bracesLike || carrotKeepBreak, 1)(spaceMod)
           .withPolicy(PolicyOps.decideNewlinesOnlyAfterClose(nextFt))
       Seq(singleLineSplit, nlSplit, noSplit)
     }
